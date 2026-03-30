@@ -1,0 +1,1 @@
+# Initialized package for contracts

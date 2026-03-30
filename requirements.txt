@@ -1,0 +1,11 @@
+pandas
+numpy
+pyyaml
+jsonschema
+scikit-learn
+# ydata-profiling  # Skipped due to Python 3.14 incompatibility
+gitpython
+pytest
+ruff
+black
+mypy
