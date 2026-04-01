@@ -1020,16 +1020,23 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--contract", required=True, help="Path to Bitol YAML contract")
     p.add_argument("--data",     required=True, help="Path to JSONL data file")
-    p.add_argument("--output",   required=True, help="Path to write JSON validation report")
+    p.add_argument("--output",   required=False, default=None,
+                   help="Path to write JSON validation report (default: validation_reports/<contract_id>.json)")
     return p
 
 
 def main() -> None:
-    args   = build_parser().parse_args()
+    args = build_parser().parse_args()
+    # Derive default output path from contract name when not provided
+    if args.output is None:
+        contract_stem = Path(args.contract).stem
+        output_path = str(Path("validation_reports") / f"{contract_stem}.json")
+    else:
+        output_path = args.output
     report = run_validation(
         contract_path=args.contract,
         data_path=args.data,
-        output_path=args.output,
+        output_path=output_path,
     )
     status_line = (
         f"[runner] {report['total_checks']} checks | "

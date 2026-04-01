@@ -865,7 +865,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
-    contract_id = args.contract_id or Path(args.source).stem.replace("_", "-")
+    if args.contract_id:
+        contract_id = args.contract_id
+    else:
+        src = Path(args.source)
+        # Include parent dir name so "week3/extractions.jsonl" → "week3-extractions"
+        parent = src.parent.name
+        stem   = src.stem
+        contract_id = f"{parent}-{stem}" if parent not in (".", "outputs", "") else stem
+        contract_id = contract_id.replace("_", "-")
     generate_contract(
         source=args.source,
         contract_id=contract_id,
