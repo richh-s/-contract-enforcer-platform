@@ -59,6 +59,34 @@ _OWNERS: dict[str, str] = {
     SOURCE_TRACES: "platform-team",
 }
 
+_TERMS_LIMITATIONS: dict[str, str] = {
+    SOURCE_WEEK1: (
+        "contentHash must be a SHA-256 hex digest (64 chars). "
+        "mutationClass and mutationType must use declared enum values. "
+        "Do not add new tools without updating the accepted_values clause."
+    ),
+    SOURCE_WEEK3: (
+        "confidence must remain a float in [0.0, 1.0]. "
+        "Do not change the scale to 0–100 — this breaks Week4 attribution weights. "
+        "doc_id is a SHA-256 hex digest, not a UUID; do not reformat it."
+    ),
+    SOURCE_WEEK4: (
+        "snapshot_id must be unique per run. "
+        "Nodes and edges must not be empty arrays — a graph with zero nodes "
+        "indicates a failed extraction and must not be written."
+    ),
+    SOURCE_WEEK5: (
+        "stream_position must increment monotonically within each stream_id. "
+        "schema_version must be present; coexistence of multiple schema versions "
+        "in a single stream without a migration window is a breaking change."
+    ),
+    SOURCE_TRACES: (
+        "end_time must be greater than start_time for all runs. "
+        "total_tokens must equal prompt_tokens + completion_tokens. "
+        "run_type must be one of: chain, llm, tool, retriever, embedding."
+    ),
+}
+
 # Short model name used in SodaChecks header: "checks for {short_name}:"
 _SODA_MODEL: dict[str, str] = {
     SOURCE_WEEK1:  "intent_records",
@@ -172,10 +200,14 @@ def _build_schema_block(source_type: str, profile: dict[str, dict]) -> dict:
         return {
             "doc_id": {
                 "type":        "string",
-                "format":      "uuid",
+                "pattern":     "^[a-f0-9]{64}$",
                 "required":    True,
                 "unique":      True,
-                "description": "Primary key. UUIDv4. Stable across re-extractions of the same source.",
+                "description": (
+                    "Primary key. SHA-256 hex digest (64 lowercase hex chars) of the "
+                    "source document content. Stable across re-extractions of the same "
+                    "source. NOT a UUID — do not validate as uuid format."
+                ),
             },
             "source_hash": {
                 "type":        "string",
@@ -185,21 +217,28 @@ def _build_schema_block(source_type: str, profile: dict[str, dict]) -> dict:
             },
             "extracted_facts": {
                 "type":     "array",
+                "required": True,
                 "items": {
                     "confidence": {
                         "type":    "number",
                         "minimum": 0.0,
                         "maximum": 1.0,
                         "required": True,
+                        "description": (
+                            "Extraction certainty score in [0.0, 1.0]. "
+                            "1.0 = fully confident, 0.0 = uncertain."
+                        ),
                     },
                     "fact_id": {
-                        "type":   "string",
-                        "format": "uuid",
-                        "unique": True,
+                        "type":        "string",
+                        "format":      "uuid",
+                        "unique":      True,
+                        "description": "UUID v4 identifying this fact. Enables idempotent upserts.",
                     },
                     "fact": {
                         "type":     "string",
                         "required": True,
+                        "description": "Extracted text fragment from the source document.",
                     },
                 },
             },
@@ -208,6 +247,63 @@ def _build_schema_block(source_type: str, profile: dict[str, dict]) -> dict:
                 "required":    True,
                 "description": "Model identifier. Must match pattern claude-* or gpt-*.",
                 "pattern":     "^(claude|gpt)-",
+            },
+            "extracted_at": {
+                "type":        "string",
+                "format":      "date-time",
+                "required":    False,
+                "nullable":    True,
+                "description": (
+                    "ISO-8601 timestamp of when extraction completed. "
+                    "Used for freshness SLA monitoring. Nullable until all "
+                    "pipeline versions emit this field."
+                ),
+            },
+            "processing_time_ms": {
+                "type":        "integer",
+                "required":    False,
+                "nullable":    True,
+                "minimum":     0,
+                "description": (
+                    "Wall-clock extraction duration in milliseconds. "
+                    "Used for latency SLA contracts. Nullable until instrumented."
+                ),
+            },
+            "entities": {
+                "type":     "array",
+                "required": False,
+                "nullable": True,
+                "description": (
+                    "Named entities identified in the document (PERSON, ORG, etc.). "
+                    "Aspirational field — not present in current data but required "
+                    "by canonical schema for downstream entity-resolution pipeline."
+                ),
+                "items": {
+                    "entity_id": {
+                        "type":   "string",
+                        "format": "uuid",
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["PERSON", "ORG", "LOCATION", "DATE", "MONEY", "FACT", "OTHER"],
+                    },
+                    "text": {
+                        "type": "string",
+                    },
+                },
+            },
+            "entity_refs": {
+                "type":     "array",
+                "required": False,
+                "nullable": True,
+                "description": (
+                    "Cross-references linking extracted_facts items to entities items "
+                    "via {fact_id, entity_id} pairs. Aspirational field."
+                ),
+                "items": {
+                    "fact_id":   {"type": "string", "format": "uuid"},
+                    "entity_id": {"type": "string", "format": "uuid"},
+                },
             },
         }
 
@@ -473,7 +569,7 @@ def build_bitol_contract(
     cross_field = [c for c in clauses if c["type"] == "cross_field"]
 
     # Quality SodaChecks block (plain-string list, matches spec format)
-    soda_checks = _build_soda_checks(source_type, soda_model, profile, clauses)
+    soda_checks = _build_soda_checks(source_type)
 
     # Lineage block: expose only upstream/downstream (no snapshot metadata)
     if lineage_info:
@@ -518,7 +614,7 @@ def build_bitol_contract(
 
         "terms": {
             "usage":       "Internal inter-system data contract. Do not publish.",
-            "limitations": "confidence must remain in 0.0–1.0 float range.",
+            "limitations": _TERMS_LIMITATIONS.get(source_type, "No additional limitations."),
         },
 
         "schema": schema_block,
@@ -537,23 +633,25 @@ def build_bitol_contract(
     }
 
 
-def _build_soda_checks(
-    source_type: str,
-    soda_model: str,
-    profile: dict[str, dict],
-    clauses: list[dict],
-) -> list:
+def _build_soda_checks(source_type: str) -> list:
     """Build machine-checkable SodaChecks as plain strings (matches spec format)."""
     checks: list[str] = ["row_count >= 1"]
 
     if source_type == SOURCE_WEEK3:
         checks += [
+            # Top-level field checks (SodaChecks operates on top-level columns)
             "missing_count(doc_id) = 0",
             "duplicate_count(doc_id) = 0",
-            "missing_count(fact) = 0",
-            "missing_count(confidence) = 0",
-            "min(confidence_mean) >= 0.0",
-            "max(confidence_mean) <= 1.0",
+            # extracted_facts is a nested array — check presence at the top level
+            "missing_count(extracted_facts) = 0",
+            # extraction_model must be present (model provenance)
+            "missing_count(extraction_model) = 0",
+            # NOTE: fact and confidence are nested inside extracted_facts[].
+            # SodaChecks cannot address nested fields directly.
+            # Use the structural quality rules below for per-item validation.
+            # Statistical bounds on confidence (evaluated after flattening):
+            "min(confidence) >= 0.0",
+            "max(confidence) <= 1.0",
         ]
 
     elif source_type == SOURCE_WEEK5:

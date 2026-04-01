@@ -478,13 +478,35 @@ def infer_clauses_from_profile(
     # Build index of canonical clauses by (field, rule)
     canonical_index = {(c["field"], c["rule"]): True for c in canonical}
 
+    # Build a secondary index: (field, type, pattern/check) to catch semantic
+    # duplicates where the rule name differs but the check is identical.
+    # e.g. canonical "doc_id_hex64" and inferred "doc_id_hex64_format" both
+    # enforce pattern ^[0-9a-f]{64}$ on doc_id — only one should appear.
+    canonical_semantic: set[tuple] = set()
+    for c in canonical:
+        if c.get("pattern"):
+            canonical_semantic.add((c["field"], "pattern", c["pattern"]))
+        if c.get("check"):
+            canonical_semantic.add((c["field"], "check", c["check"]))
+        if c.get("accepted_values") and c.get("accepted_values") != "__from_profile__":
+            canonical_semantic.add((c["field"], "accepted_values", tuple(sorted(c["accepted_values"]))))
+
     # Add inferred clauses not already covered by canonical
     merged = list(canonical)
     for clause in inferred:
         key = (clause["field"], clause["rule"])
-        if key not in canonical_index:
-            merged.append(clause)
-            canonical_index[key] = True
+        if key in canonical_index:
+            continue
+        # Skip if a canonical clause already enforces the same constraint
+        sem_key: tuple | None = None
+        if clause.get("pattern"):
+            sem_key = (clause["field"], "pattern", clause["pattern"])
+        elif clause.get("check"):
+            sem_key = (clause["field"], "check", clause["check"])
+        if sem_key and sem_key in canonical_semantic:
+            continue
+        merged.append(clause)
+        canonical_index[key] = True
 
     return merged
 
