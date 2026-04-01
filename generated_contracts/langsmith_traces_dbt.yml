@@ -1,0 +1,78 @@
+version: 2
+models:
+- name: langsmith_traces
+  description: dbt model generated from Bitol contract 'langsmith-traces'. Cross-field
+    and statistical checks are enforced by contracts/runner.py, not by dbt tests.
+  columns:
+  - name: completion_tokens
+    tests:
+    - not_null
+    - dbt_utils.expression_is_true:
+        expression: completion_tokens >= 51.0 and completion_tokens <= 797.0
+        '# note': requires dbt-utils package
+    description: '''completion_tokens'' has no null values in the observed data. Inferred
+      as required.'
+  - name: end_time
+    tests:
+    - not_null
+    description: '''end_time'' has no null values in the observed data. Inferred as
+      required.'
+  - name: id
+    tests:
+    - not_null
+    - not_null
+    description: id must be a valid UUID v7/v4. Each run must be uniquely addressable
+      in LangSmith.
+  - name: name
+    tests:
+    - not_null
+    description: name identifies the chain/tool/LLM step. Required for latency attribution.
+  - name: prompt_tokens
+    tests:
+    - not_null
+    - dbt_utils.expression_is_true:
+        expression: prompt_tokens >= 203.0 and prompt_tokens <= 1499.0
+        '# note': requires dbt-utils package
+    description: '''prompt_tokens'' has no null values in the observed data. Inferred
+      as required.'
+  - name: run_type
+    tests:
+    - accepted_values:
+        values:
+        - chain
+        - llm
+        - tool
+        - retriever
+        - embedding
+    - not_null
+    - accepted_values:
+        values:
+        - chain
+        - llm
+        - tool
+    description: run_type must be one of the LangSmith canonical run types.
+  - name: session_id
+    tests:
+    - not_null
+    description: '''session_id'' has no null values in the observed data. Inferred
+      as required.'
+  - name: start_time
+    tests:
+    - not_null
+    description: start_time is required for latency calculation.
+  - name: total_cost
+    tests:
+    - not_null
+    - dbt_utils.expression_is_true:
+        expression: total_cost >= 0.000576 and total_cost <= 0.00456
+        '# note': requires dbt-utils package
+    description: '''total_cost'' has no null values in the observed data. Inferred
+      as required.'
+  - name: total_tokens
+    tests:
+    - not_null
+    - dbt_utils.expression_is_true:
+        expression: total_tokens >= 288.0 and total_tokens <= 2280.0
+        '# note': requires dbt-utils package
+    description: '''total_tokens'' has no null values in the observed data. Inferred
+      as required.'

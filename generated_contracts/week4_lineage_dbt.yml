@@ -1,0 +1,31 @@
+version: 2
+models:
+- name: week4_lineage
+  description: dbt model generated from Bitol contract 'week4-lineage'. Cross-field
+    and statistical checks are enforced by contracts/runner.py, not by dbt tests.
+  columns:
+  - name: edge_count
+    tests:
+    - not_null
+    - dbt_utils.expression_is_true:
+        expression: edge_count >= 11.0 and edge_count <= 11.0
+        '# note': requires dbt-utils package
+    description: '''edge_count'' has no null values in the observed data. Inferred
+      as required.'
+  - name: node_count
+    tests:
+    - not_null
+    - dbt_utils.expression_is_true:
+        expression: node_count >= 16.0 and node_count <= 16.0
+        '# note': requires dbt-utils package
+    description: '''node_count'' has no null values in the observed data. Inferred
+      as required.'
+  - name: snapshot_id
+    tests:
+    - not_null
+    description: snapshot_id must be present. It is the primary key for lineage snapshots.
+  - name: timestamp
+    tests:
+    - not_null
+    description: timestamp is required for ordering snapshots chronologically and
+      detecting drift.
