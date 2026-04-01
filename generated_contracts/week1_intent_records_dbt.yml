@@ -1,0 +1,117 @@
+version: 2
+
+models:
+  - name: week1_intent_records
+    description: >
+      dbt model generated from Bitol contract 'week1-intent-records'.
+      Intent records produced by the Week 1 mutation-tracking pipeline. Each record
+      represents a single file mutation event with a UUID id, intentId linking it to
+      a developer goal, and a contentHash of the mutated file.
+      Cross-field and statistical checks are enforced by contracts/runner.py.
+
+    columns:
+      - name: id
+        description: >
+          UUID v4 identifying this intent record. Each record must be globally unique —
+          duplicate ids cause double-counting in mutation attribution.
+        tests:
+          - not_null
+          - unique
+
+      - name: intentId
+        description: >
+          Links the mutation to a declared developer goal. Must be a known intent ID.
+          Undeclared intent IDs indicate an untracked or ad-hoc change bypassing planning.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - add-audit-log
+                - optimize-billing
+                - refactor-auth
+
+      - name: timestamp
+        description: >
+          ISO-8601 timestamp of when the mutation occurred. Required for temporal ordering
+          and causal attribution. Missing timestamps break intent-to-mutation replay.
+        tests:
+          - not_null
+
+      - name: tool
+        description: >
+          Agent tool used to apply the mutation. Must be a declared tool — unknown tool
+          names indicate an undeclared action was taken outside the approved mutation set.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - apply_patch
+                - write_to_file
+
+      - name: mutationClass
+        description: >
+          High-level category of the mutation. Used to classify intent impact.
+          Unknown classes break downstream mutation-analytics grouping.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - AST_REFACTOR
+                - INTENT_EVOLUTION
+
+      - name: mutationType
+        description: >
+          Granular mutation operation. Must be one of the canonical CRUD-style types.
+          Used for downstream filtering in audit and diff pipelines.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - READ
+                - WRITE
+                - DELETE
+                - EXEC
+
+      - name: outcome
+        description: >
+          Result of the mutation. Must be one of the canonical states. Unknown outcomes
+          indicate a new failure mode that the attribution pipeline cannot handle.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - success
+                - failure
+                - partial
+
+      - name: contentHash
+        description: >
+          SHA-256 hex digest (64 lowercase chars) of the file content at time of mutation.
+          Used to detect re-mutation of identical content and enable deduplication.
+          BREAKING if format is changed from hex64 to any other encoding.
+        tests:
+          - not_null
+
+      - name: filePath
+        description: >
+          Relative path of the file that was mutated. Required for diff reconstruction
+          and impact radius calculation.
+        tests:
+          - not_null
+
+      - name: revisionId
+        description: >
+          Git commit SHA or revision identifier at the time of mutation. Used to anchor
+          mutations to a specific repo state. Format: 40-char hex SHA or short SHA.
+        tests:
+          - not_null
+
+      - name: fileSizeBytes
+        description: >
+          Size of the mutated file in bytes at mutation time. Used for change-magnitude
+          heuristics. Must be >= 0; negative values indicate a serialization error.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "fileSizeBytes >= 0"
+              # fileSizeBytes must be non-negative; a negative value is a serialization bug

@@ -1,0 +1,125 @@
+version: 2
+
+models:
+  - name: week5_events
+    description: >
+      dbt model generated from Bitol contract 'week5-event-stream'.
+      Each event captures a state transition in the lending-decision pipeline
+      (ApplicationSubmitted, CreditAnalysisCompleted, DecisionGenerated, etc.)
+      with a UUID event_id, stream_id, stream_position, actor_id, and nested payload.
+      stream_position must increment monotonically within each stream_id.
+      Cross-field and statistical checks are enforced by contracts/runner.py.
+
+    columns:
+      - name: event_id
+        description: >
+          UUID v4 identifying the event. Each event must be globally unique and immutable
+          once written — duplicate event_ids cause double-processing in idempotent consumers.
+        tests:
+          - not_null
+          - unique
+
+      - name: event_type
+        description: >
+          Declared event type in PascalCase. Must be a known, registered event type.
+          Undeclared event types bypass consumer routing and break downstream audit trails.
+          Snake_case or lowercase variants indicate pipeline schema drift.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - AgentContextLoaded
+                - AgentNodeExecuted
+                - AgentSessionStarted
+                - ApplicationSubmitted
+                - AuditIntegrityCheckRun
+                - ComplianceCheckCompleted
+                - CreditAnalysisCompleted
+                - DecisionGenerated
+                - FraudScreeningCompleted
+                - HumanReviewCompleted
+
+      - name: stream_id
+        description: >
+          Identifies the logical event stream. All events within a stream must share
+          the same stream_id for correct ordering and replay.
+        tests:
+          - not_null
+
+      - name: stream_position
+        description: >
+          Monotonically increasing position within a stream_id partition. Gaps or resets
+          indicate a concurrent write collision or event replay bug. Must be >= 1.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "stream_position >= 1"
+              # stream_position must start at 1; 0 indicates an un-initialised sequence counter
+
+      - name: timestamp
+        description: >
+          ISO-8601 timestamp of when the event was recorded. Must be present — missing
+          timestamps make temporal ordering and consumer replay impossible.
+          RULE: timestamp >= any payload.*_occurred_at field (clock-skew guard).
+        tests:
+          - not_null
+
+      - name: source_system
+        description: >
+          Service that emitted the event. Required for attribution and blame-chain analysis.
+          Unknown source systems indicate an undeclared producer bypassing governance.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - agent_orchestrator
+                - audit_service
+                - compliance_service
+                - credit_service
+                - fraud_service
+                - loan_service
+                - test_harness
+
+      - name: schema_version
+        description: >
+          Payload schema version. Consumers route to the correct deserializer based on this
+          field. Missing schema_version is a BREAKING gap — consumers cannot safely parse
+          the payload without it.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - "1.0"
+                - "2.0"
+
+      - name: actor_id
+        description: >
+          Identifies the agent or user who triggered the event. Required for audit trail
+          and accountability. Nullable only for system-generated events with no human actor.
+        tests:
+          - not_null
+
+      - name: metadata__causation_id
+        description: >
+          UUID v4 of the upstream event that caused this event. Used for causal tracing
+          across the event chain. Must be UUID format — non-UUID values break the trace graph.
+        tests:
+          - not_null
+
+      - name: metadata__correlation_id
+        description: >
+          Correlation token linking events within a single logical transaction or application
+          session. Low-cardinality field used for end-to-end tracing.
+        tests:
+          - not_null
+
+      - name: event_version
+        description: >
+          Version of the event schema for this specific event_type. Must be in [1.0, 2.0]
+          per the current event registry. Versions outside this range indicate an unregistered
+          event schema variant.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "event_version >= 1.0 and event_version <= 2.0"
+              # Critical: event_version outside registry range breaks consumer deserialization

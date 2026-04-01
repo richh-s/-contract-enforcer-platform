@@ -1,0 +1,96 @@
+version: 2
+
+models:
+  - name: week3_extractions
+    description: >
+      dbt model generated from Bitol contract 'week3-document-refinery-extractions'.
+      Each record contains a doc_id (SHA-256 of the source document), an extraction_model
+      identifier, and an extracted_facts array of {fact_id, fact, confidence} objects.
+      Downstream week4 cartographer ingests doc_id and extracted_facts as node metadata.
+      Cross-field and statistical checks are enforced by contracts/runner.py.
+
+    columns:
+      - name: doc_id
+        description: >
+          Primary key. SHA-256 hex digest (64 lowercase hex chars) of the source document.
+          Stable across re-extractions of the same source. NOT a UUID — do not validate
+          as uuid format.
+        tests:
+          - not_null
+          - unique
+
+      - name: source_hash
+        description: >
+          SHA-256 of the raw source text before extraction. Used to detect re-extraction
+          of identical content and enable deduplication. Changes iff the source content changes.
+        tests:
+          - not_null
+
+      - name: confidence
+        description: >
+          Extraction certainty score in [0.0, 1.0]. 1.0 = fully confident, 0.0 = uncertain.
+          CRITICAL: must remain a float in [0.0, 1.0]. Changing the scale to 0–100 breaks
+          downstream week4 attribution weights — a 0–100 score inflates ranking by 100x and
+          is a BREAKING contract violation.
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "confidence >= 0.0 and confidence <= 1.0"
+              # Critical: prevents 0-100 scale bug that silently corrupts downstream ranking
+
+      - name: extraction_model
+        description: >
+          LLM identifier. Must match pattern 'claude-*' or 'gpt-*'. Unknown prefixes indicate
+          an undeclared model was used in production, bypassing model governance controls.
+        tests:
+          - not_null
+
+      - name: fact
+        description: >
+          The extracted text fragment from the source document. Must be present and non-empty
+          for every row — null facts cannot be scored or attributed downstream.
+        tests:
+          - not_null
+
+      - name: extracted_facts__fact_id
+        description: >
+          UUID v4 identifying each extracted fact. Enables idempotent upserts in the downstream
+          cartographer (week4). Must be globally unique across all extracted_facts items.
+        tests:
+          - not_null
+          - unique
+
+      - name: entities__type
+        description: >
+          Named entity category. Must be one of the canonical types defined by the
+          entity-resolution pipeline. Unknown types cause silent drops in the entity resolver
+          and break knowledge-graph completeness.
+        tests:
+          - accepted_values:
+              values:
+                - PERSON
+                - ORG
+                - LOCATION
+                - DATE
+                - MONEY
+                - FACT
+                - OTHER
+
+      - name: entity_refs__entity_id
+        description: >
+          Cross-reference linking an extracted fact to a resolved entity via entity_id.
+          Every entity_id here must exist in the entities model — broken references create
+          dangling facts in the knowledge graph that are invisible to the resolver.
+        tests:
+          - relationships:
+              to: ref('entities')
+              field: entity_id
+
+      - name: extracted_at
+        description: >
+          ISO-8601 timestamp of when extraction completed. Used for freshness SLA monitoring.
+          Rule: extracted_at must be >= the source document ingestion timestamp.
+          Violations indicate clock skew or mis-ordered pipeline stages.
+          Nullable until all pipeline versions emit this field.
+        tests:
+          - not_null

@@ -144,7 +144,7 @@ dmypy.json
 cython_debug/
 
 # Data and generated files
-generated_contracts/
+# generated_contracts/ — tracked so reviewers can inspect contract artifacts
 validation_reports/
 violation_log/
 schema_snapshots/
