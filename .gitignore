@@ -148,5 +148,5 @@ generated_contracts/
 validation_reports/
 violation_log/
 schema_snapshots/
-enforcer_report/
 outputs/
+# enforcer_report/ — tracked so interim report is submitted

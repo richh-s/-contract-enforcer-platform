@@ -3,7 +3,8 @@ numpy
 pyyaml
 jsonschema
 scikit-learn
-# ydata-profiling  # Skipped due to Python 3.14 incompatibility
+# ydata-profiling  # Install when Python <=3.12: pip install ydata-profiling
+                   # Native pandas fallback is used automatically on Python 3.14+
 gitpython
 pytest
 ruff
