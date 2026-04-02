@@ -1,0 +1,40 @@
+{
+  "generated_at": "2026-04-02T08:55:16.217252+00:00",
+  "analyzer_version": "4.0.0",
+  "sources": {
+    "extractions": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/outputs/week3/extractions.jsonl",
+    "verdicts": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/outputs/week2/verdicts.jsonl"
+  },
+  "embedding_drift": {
+    "status": "PASS",
+    "drift_score": 0.0,
+    "threshold": 0.15,
+    "cosine_similarity": 1.0,
+    "interpretation": "Semantic content stable (drift=0.0000 \u2264 threshold=0.15).",
+    "embedding_backend": "sklearn:tfidf+svd",
+    "baseline_backend": "sklearn:tfidf+svd",
+    "texts_sampled": 200,
+    "baseline_path": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/schema_snapshots/embedding_baselines.npz"
+  },
+  "prompt_validation": {
+    "status": "PASS",
+    "total_records": 50,
+    "valid_records": 50,
+    "quarantined_records": 0,
+    "quarantine_rate": 0.0,
+    "schema_used": "PROMPT_SCHEMA_v1"
+  },
+  "llm_output_validation": {
+    "status": "PASS",
+    "total_outputs": 3,
+    "schema_violations": 0,
+    "violation_rate": 0.0,
+    "trend": "stable",
+    "valid_verdict_values": [
+      "FAIL",
+      "PASS",
+      "WARN"
+    ],
+    "baseline_rate": 0.0
+  }
+}
