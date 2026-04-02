@@ -282,30 +282,40 @@ def extract_model_fields(contract: dict) -> tuple[str, dict]:
 
 # ── Rename detection ──────────────────────────────────────────────────────────
 
-RENAME_SIMILARITY_THRESHOLD = 0.45  # SequenceMatcher ratio threshold
+RENAME_SIMILARITY_THRESHOLD = 0.60   # Total score must clear this bar
+RENAME_MIN_NAME_RATIO       = 0.35   # Name similarity alone must clear this — prevents
+                                     # type-only matches from masquerading as renames.
+                                     # Example guard: "doc_id" (string) vs "timestamp" (string)
+                                     # share a type but name ratio ≈ 0.18 → correctly rejected.
+RENAME_CONFIDENCE_GAP       = 0.12   # Best candidate must beat second-best by this margin;
+                                     # ambiguous matches (two equally-similar adds) are left as
+                                     # independent REMOVE + ADD instead.
 
 
 def _field_similarity(name_a: str, def_a: dict, name_b: str, def_b: dict) -> float:
     """
     Score similarity between two field candidates for rename detection.
 
-    Combines:
-      - Name similarity (SequenceMatcher)
-      - Type match bonus
-      - Shared constraint keys bonus
+    Components (all in [0, 1] before capping):
+      - name_score  : SequenceMatcher character-level ratio  (weight: 1.0)
+      - type_bonus  : +0.15 if both fields share the same 'type'
+      - struct_bonus: +0.10 × (shared constraint keys / union of constraint keys)
+
+    The name ratio is checked independently against RENAME_MIN_NAME_RATIO before
+    the total score is considered, ensuring structural similarity alone cannot
+    produce a false rename.
     """
     name_score = SequenceMatcher(None, name_a, name_b).ratio()
 
-    type_bonus = 0.2 if def_a.get("type") == def_b.get("type") else 0.0
+    type_bonus = 0.15 if def_a.get("type") == def_b.get("type") else 0.0
 
-    # Structural similarity: shared constraint keys (minimum, maximum, format, enum, etc.)
     constraint_keys = {"minimum", "maximum", "format", "enum", "pattern", "nullable", "required"}
     a_keys = set(def_a.keys()) & constraint_keys
     b_keys = set(def_b.keys()) & constraint_keys
-    union = a_keys | b_keys
-    shared_bonus = (len(a_keys & b_keys) / len(union) * 0.15) if union else 0.0
+    union  = a_keys | b_keys
+    struct_bonus = (len(a_keys & b_keys) / len(union) * 0.10) if union else 0.0
 
-    return name_score + type_bonus + shared_bonus
+    return name_score + type_bonus + struct_bonus
 
 
 def detect_renames(
@@ -315,27 +325,45 @@ def detect_renames(
     """
     Match removed fields to added fields as renames.
 
-    Returns list of (old_name, new_name) pairs above the similarity threshold.
-    Each field participates in at most one rename pair.
+    Algorithm:
+      For each removed field, score every added field that hasn't been claimed.
+      A rename pair is accepted only when ALL three conditions hold:
+        1. name similarity ratio >= RENAME_MIN_NAME_RATIO   (name-level guard)
+        2. total score > RENAME_SIMILARITY_THRESHOLD        (combined bar)
+        3. best score exceeds second-best by RENAME_CONFIDENCE_GAP  (ambiguity guard)
+
+      Each field participates in at most one rename pair (greedy, best-first).
     """
     renames: list[tuple[str, str]] = []
     used_added: set[str] = set()
 
     for old_name, old_def in removed.items():
-        best_score = RENAME_SIMILARITY_THRESHOLD
-        best_new = None
-
+        # Collect all candidates with their scores
+        candidates: list[tuple[float, str]] = []
         for new_name, new_def in added.items():
             if new_name in used_added:
                 continue
+            name_ratio = SequenceMatcher(None, old_name, new_name).ratio()
+            if name_ratio < RENAME_MIN_NAME_RATIO:
+                continue  # fails name-level guard — reject before full score
             score = _field_similarity(old_name, old_def, new_name, new_def)
-            if score > best_score:
-                best_score = score
-                best_new = new_name
+            if score > RENAME_SIMILARITY_THRESHOLD:
+                candidates.append((score, new_name))
 
-        if best_new is not None:
-            renames.append((old_name, best_new))
-            used_added.add(best_new)
+        if not candidates:
+            continue
+
+        candidates.sort(reverse=True)
+        best_score, best_new = candidates[0]
+
+        # Ambiguity guard: skip if two candidates are too close
+        if len(candidates) >= 2:
+            second_score = candidates[1][0]
+            if best_score - second_score < RENAME_CONFIDENCE_GAP:
+                continue  # ambiguous — treat as independent REMOVE + ADD
+
+        renames.append((old_name, best_new))
+        used_added.add(best_new)
 
     return renames
 
@@ -727,7 +755,21 @@ _FAILURE_TEMPLATES = {
 def compute_consumer_impact(
     new_contract: dict, changes: list[dict]
 ) -> list[dict]:
-    """Produce per-consumer failure analysis from lineage + detected changes."""
+    """
+    Produce per-consumer failure analysis grounded in contract lineage data.
+
+    Source of truth — NOT heuristic:
+      Each consumer entry comes from contract["lineage"]["downstream"], which is
+      written by the generator from the real week4 lineage_snapshots.jsonl.
+      Two lineage fields drive the analysis:
+        - fields_consumed:     what fields this consumer actually reads
+        - breaking_if_changed: fields the consumer has declared as contract-critical
+
+    A consumer appears in the output ONLY IF one of its declared fields overlaps
+    with a detected BREAKING or PARTIAL change in this diff.  Failure mode types
+    (SILENT_CORRUPTION, NULL_CRASH, etc.) are keyed on change category, not
+    inferred — see _FAILURE_TEMPLATES above.
+    """
     lineage   = new_contract.get("lineage", {})
     downstream = lineage.get("downstream", []) or []
     breaking_changes = [c for c in changes if c["change_type"] in ("BREAKING", "PARTIAL")]
