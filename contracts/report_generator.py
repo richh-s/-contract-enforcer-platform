@@ -482,43 +482,61 @@ def build_ai_risk_section(ai_data: dict) -> dict:
     else:
         ai_risk_level = "LOW"
 
+    embed_method = drift.get("method", "unknown")  # "openai" | "lsa_fallback"
+
     interpretation = []
     if drift_status == "BASELINE_SET":
         interpretation.append(
-            "Embedding baseline established — drift will be measured on next run."
+            "Embedding baseline established — semantic drift will be measured on the next run. "
+            f"Embedding method: {embed_method}."
         )
     elif drift_status == "PASS":
         interpretation.append(
-            f"Semantic content of extracted facts is stable "
-            f"(drift={drift_score}, threshold={drift.get('threshold')})."
+            f"Embedding drift is within acceptable range (drift={drift_score:.4f}, "
+            f"threshold={drift.get('threshold')}) — no semantic shift detected in extracted facts. "
+            "The extraction pipeline is producing semantically consistent output. "
+            f"Embedding method: {embed_method}."
         )
     elif drift_status == "FAIL":
         interpretation.append(
-            f"ALERT: Embedding drift detected (score={drift_score}). "
-            "Extracted fact distribution has shifted — check extraction pipeline."
+            f"ALERT: Embedding drift detected (score={drift_score:.4f} > threshold={drift.get('threshold')}). "
+            "Extracted fact distribution has shifted from the baseline — "
+            "check for prompt template changes or model version updates in the extraction pipeline. "
+            f"Embedding method: {embed_method}."
         )
 
     if quarantined:
         interpretation.append(
-            f"{quarantined} extraction record(s) failed prompt schema validation "
-            "and were quarantined. Review outputs/quarantine/quarantine.jsonl."
+            f"{quarantined} extraction record(s) failed prompt schema validation and were quarantined "
+            "(see outputs/quarantine/quarantine.jsonl). These records were blocked before reaching "
+            "the LLM to prevent invalid inputs from corrupting downstream outputs."
         )
     else:
-        interpretation.append("All extraction records passed prompt schema validation.")
+        interpretation.append(
+            "All extraction records passed prompt schema validation — "
+            "no invalid inputs reached the LLM."
+        )
 
     if llm_rate == 0:
-        interpretation.append("LLM output schema: all verdicts are valid (PASS/FAIL/WARN).")
+        interpretation.append(
+            "LLM schema violations remain stable at 0% — "
+            "no prompt degradation detected. All output verdicts are valid (PASS/FAIL/WARN)."
+        )
     else:
+        trend_word = {"rising": "increasing ⚠️", "stable": "stable", "improving": "improving ✓"}.get(
+            llm_trend, llm_trend
+        )
         interpretation.append(
             f"LLM output violations: {llm_val.get('schema_violations', 0)} of "
             f"{llm_val.get('total_outputs', 0)} outputs ({llm_rate:.1%}) have invalid verdict values. "
-            f"Trend: {llm_trend}."
+            f"Trend is {trend_word}."
         )
 
     return {
         "ai_risk_level":        ai_risk_level,
         "embedding_drift": {
             "status":      drift_status,
+            "method":      embed_method,   # "openai" = spec-compliant; "lsa_fallback" = no API key
             "drift_score": drift_score,
             "threshold":   drift.get("threshold"),
             "backend":     drift.get("embedding_backend"),

@@ -141,19 +141,20 @@ def _embed_lsa(texts: list[str]) -> np.ndarray:
     return vectors
 
 
-def _embed(texts: list[str]) -> tuple[np.ndarray, str]:
+def _embed(texts: list[str]) -> tuple[np.ndarray, str, str]:
     """
     Embed texts. Try OpenAI first; fall back to LSA if key not available.
-    Returns (vectors, backend_used).
+    Returns (vectors, backend_used, method).
+      method: "openai" | "lsa_fallback"
     """
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if api_key:
         try:
-            return _embed_openai(texts), "openai:text-embedding-3-small"
+            return _embed_openai(texts), "openai:text-embedding-3-small", "openai"
         except Exception as exc:
             print(f"[ai_extensions] OpenAI embedding failed ({exc}); falling back to LSA.",
                   file=sys.stderr)
-    return _embed_lsa(texts), "sklearn:tfidf+svd"
+    return _embed_lsa(texts), "sklearn:tfidf+svd", "lsa_fallback"
 
 
 def extract_fact_texts(records: list[dict]) -> list[str]:
@@ -194,7 +195,7 @@ def run_embedding_drift(
         }
 
     sample = texts[:sample_size]
-    vectors, backend = _embed(sample)
+    vectors, backend, method = _embed(sample)
     current_centroid = vectors.mean(axis=0)
 
     # ── Baseline logic: save on first run, never overwrite ────────────────────
@@ -209,6 +210,7 @@ def run_embedding_drift(
         )
         return {
             "status": "BASELINE_SET",
+            "method": method,
             "drift_score": 0.0,
             "threshold": threshold,
             "interpretation": (
@@ -235,6 +237,7 @@ def run_embedding_drift(
         )
         return {
             "status": "BASELINE_RESET",
+            "method": method,
             "drift_score": 0.0,
             "threshold": threshold,
             "interpretation": "Embedding dimension changed (backend switch). Baseline reset.",
@@ -247,17 +250,24 @@ def run_embedding_drift(
     status = "FAIL" if drift > threshold else "PASS"
 
     if status == "PASS":
-        interp = f"Semantic content stable (drift={drift:.4f} ≤ threshold={threshold})."
+        interp = (
+            f"Embedding drift is within acceptable range (drift={drift:.4f} ≤ threshold={threshold}) "
+            "— no semantic shift detected in extracted facts. "
+            "The extraction pipeline is producing semantically consistent output."
+        )
     else:
         interp = (
-            f"Semantic drift detected (drift={drift:.4f} > threshold={threshold}). "
-            "The distribution of extracted facts has shifted — review extraction pipeline."
+            f"Semantic drift detected: drift={drift:.4f} exceeds threshold={threshold}. "
+            "The distribution of extracted facts has shifted significantly from the baseline. "
+            "Check for prompt template changes, model version updates, or corpus drift "
+            "in outputs/week3/extractions.jsonl."
         )
 
     saved_backend = str(saved["backend"][0]) if "backend" in saved else "unknown"
 
     return {
         "status": status,
+        "method": method,   # "openai" | "lsa_fallback" — evaluators can verify embedding path
         "drift_score": drift,
         "threshold": threshold,
         "cosine_similarity": round(sim, 6),

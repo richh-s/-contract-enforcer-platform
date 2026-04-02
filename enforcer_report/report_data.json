@@ -1,6 +1,6 @@
 {
-  "report_id": "enforcer-20260402T085523Z",
-  "generated_at": "2026-04-02T08:55:23.611435+00:00",
+  "report_id": "enforcer-20260402T091220Z",
+  "generated_at": "2026-04-02T09:12:20.349827+00:00",
   "report_version": "4.0.0",
   "data_health_score": 59,
   "health_score_breakdown": {
@@ -159,6 +159,7 @@
     "ai_risk_level": "LOW",
     "embedding_drift": {
       "status": "PASS",
+      "method": "lsa_fallback",
       "drift_score": 0.0,
       "threshold": 0.15,
       "backend": "sklearn:tfidf+svd"
@@ -174,7 +175,7 @@
       "trend": "stable",
       "schema_violations": 0
     },
-    "interpretation": "Semantic content of extracted facts is stable (drift=0.0, threshold=0.15). All extraction records passed prompt schema validation. LLM output schema: all verdicts are valid (PASS/FAIL/WARN).",
+    "interpretation": "Embedding drift is within acceptable range (drift=0.0000, threshold=0.15) \u2014 no semantic shift detected in extracted facts. The extraction pipeline is producing semantically consistent output. Embedding method: lsa_fallback. All extraction records passed prompt schema validation \u2014 no invalid inputs reached the LLM. LLM schema violations remain stable at 0% \u2014 no prompt degradation detected. All output verdicts are valid (PASS/FAIL/WARN).",
     "source_file": "validation_reports/ai_extensions.json"
   },
   "recommendations": [
