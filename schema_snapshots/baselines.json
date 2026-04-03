@@ -1,0 +1,119 @@
+{
+  "urn:contract:week3-extractions:v1": {
+    "field_stats": {
+      "confidence": {
+        "mean": 0.9,
+        "std": 0.0,
+        "min": 0.9,
+        "max": 0.9,
+        "null_fraction": 0.0
+      }
+    },
+    "created_at": "2026-04-01T12:39:36.175053+00:00",
+    "record_count": 50,
+    "contract_id": "urn:contract:week3-extractions:v1"
+  },
+  "urn:contract:week5-events:v1": {
+    "field_stats": {
+      "stream_position": {
+        "mean": 1.7258064516129032,
+        "std": 1.1897010898693767,
+        "min": 1.0,
+        "max": 6.0,
+        "null_fraction": 0.0
+      },
+      "global_position": {
+        "mean": 1491.5,
+        "std": 18.041618552668716,
+        "min": 1461.0,
+        "max": 1522.0,
+        "null_fraction": 0.0
+      },
+      "event_version": {
+        "mean": 1.1612903225806452,
+        "std": 0.37080101097607304,
+        "min": 1.0,
+        "max": 2.0,
+        "null_fraction": 0.0
+      }
+    },
+    "created_at": "2026-04-01T12:41:57.024581+00:00",
+    "record_count": 62,
+    "contract_id": "urn:contract:week5-events:v1"
+  },
+  "week3-document-refinery-extractions": {
+    "field_stats": {
+      "confidence": {
+        "mean": 0.9,
+        "std": 0.0,
+        "min": 0.9,
+        "max": 0.9,
+        "null_fraction": 0.0
+      }
+    },
+    "created_at": "2026-04-01T18:48:28.627612+00:00",
+    "record_count": 50,
+    "contract_id": "week3-document-refinery-extractions"
+  },
+  "week5-event-stream": {
+    "field_stats": {
+      "stream_position": {
+        "mean": 1.7258064516129032,
+        "std": 1.1897010898693767,
+        "min": 1.0,
+        "max": 6.0,
+        "null_fraction": 0.0
+      },
+      "global_position": {
+        "mean": 1491.5,
+        "std": 18.041618552668716,
+        "min": 1461.0,
+        "max": 1522.0,
+        "null_fraction": 0.0
+      },
+      "event_version": {
+        "mean": 1.1612903225806452,
+        "std": 0.37080101097607304,
+        "min": 1.0,
+        "max": 2.0,
+        "null_fraction": 0.0
+      }
+    },
+    "created_at": "2026-04-01T20:30:42.984461+00:00",
+    "record_count": 62,
+    "contract_id": "week5-event-stream"
+  },
+  "week1-intent-records": {
+    "field_stats": {},
+    "created_at": "2026-04-01T20:30:43.034774+00:00",
+    "record_count": 11,
+    "contract_id": "week1-intent-records"
+  },
+  "week4-lineage-snapshots": {
+    "field_stats": {},
+    "created_at": "2026-04-01T20:30:43.080645+00:00",
+    "record_count": 1,
+    "contract_id": "week4-lineage-snapshots"
+  },
+  "langsmith-traces": {
+    "field_stats": {
+      "total_tokens": {
+        "mean": 1064.6119402985075,
+        "std": 386.71300248503275,
+        "min": 288.0,
+        "max": 2280.0,
+        "null_fraction": 0.0
+      },
+      "total_cost": {
+        "mean": 0.002129223880597015,
+        "std": 0.0007734260049700655,
+        "min": 0.000576,
+        "max": 0.00456,
+        "null_fraction": 0.0
+      }
+    },
+    "created_at": "2026-04-01T20:30:43.131707+00:00",
+    "record_count": 402,
+    "contract_id": "langsmith-traces"
+  }
+}
