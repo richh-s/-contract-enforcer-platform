@@ -40,6 +40,10 @@ BASELINE_NPZ       = _HERE / "schema_snapshots" / "embedding_baselines.npz"
 VERDICTS_BASELINE  = _HERE / "schema_snapshots" / "verdict_baseline.json"
 QUARANTINE_DIR     = _HERE / "outputs" / "quarantine"
 QUARANTINE_FILE    = QUARANTINE_DIR / "quarantine.jsonl"
+VIOLATION_LOG      = _HERE / "violation_log" / "violations.jsonl"
+
+# Threshold above which LLM output violation rate triggers a WARN log entry
+LLM_VIOLATION_RATE_THRESHOLD = 0.05
 
 # ── Embedding drift config ────────────────────────────────────────────────────
 DRIFT_THRESHOLD    = 0.15
@@ -463,7 +467,52 @@ def run_llm_output_validation(
     if schema_violations:
         result["violation_details"] = schema_violations[:10]
 
+    # Write WARN entry to violation log when rate exceeds threshold
+    if rate > LLM_VIOLATION_RATE_THRESHOLD:
+        _write_violation_log_entry(
+            check_id="ai_extensions.llm_output_schema.violation_rate",
+            check_type="llm_output_schema",
+            severity="WARN",
+            message=(
+                f"LLM output schema violation rate {rate:.2%} exceeds threshold "
+                f"{LLM_VIOLATION_RATE_THRESHOLD:.2%}. "
+                f"{len(schema_violations)}/{total} verdicts have schema violations. "
+                f"Trend: {trend}."
+            ),
+            actual_value=f"violation_rate={rate:.6f}",
+            expected=f"violation_rate<={LLM_VIOLATION_RATE_THRESHOLD}",
+        )
+
     return result
+
+
+def _write_violation_log_entry(
+    check_id: str,
+    check_type: str,
+    severity: str,
+    message: str,
+    actual_value: str,
+    expected: str,
+) -> None:
+    """Append a WARN/FAIL entry to violation_log/violations.jsonl."""
+    import uuid as _uuid
+    VIOLATION_LOG.parent.mkdir(parents=True, exist_ok=True)
+    entry = {
+        "violation_id":  str(_uuid.uuid4()),
+        "check_id":      check_id,
+        "check_type":    check_type,
+        "detected_at":   datetime.now(timezone.utc).isoformat(),
+        "contract_id":   "ai_extensions",
+        "severity":      severity,
+        "actual_value":  actual_value,
+        "expected":      expected,
+        "message":       message,
+        "injected":      False,
+        "blame_chain":   [],
+        "blast_radius":  {"affected_nodes": [], "affected_pipelines": []},
+    }
+    with open(VIOLATION_LOG, "a") as fh:
+        fh.write(json.dumps(entry) + "\n")
 
 
 # ═════════════════════════════════════════════════════════════════════════════

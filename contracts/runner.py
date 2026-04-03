@@ -1078,10 +1078,19 @@ def main() -> None:
     )
     print(status_line)
 
+    # Severity-aware failure counts
+    critical_failures = sum(
+        1 for c in report["results"]
+        if c.get("status") == "FAIL" and c.get("severity") == "CRITICAL"
+    )
+    high_failures = sum(
+        1 for c in report["results"]
+        if c.get("status") == "FAIL" and c.get("severity") == "HIGH"
+    )
     has_failures = report["failed"] > 0
 
     if mode == "AUDIT":
-        # AUDIT: log everything, never block the pipeline
+        # AUDIT: log all violations, never block the pipeline
         if has_failures:
             print("[runner][AUDIT] Violations recorded — pipeline NOT blocked")
         else:
@@ -1089,21 +1098,31 @@ def main() -> None:
         sys.exit(0)
 
     elif mode == "WARN":
-        # WARN: surface violations as warnings, but still exit 0
-        if has_failures:
-            print("[runner][WARN] ⚠  Violations detected — pipeline NOT blocked (WARN mode)")
+        # WARN: block only on CRITICAL violations; HIGH and below are warnings only
+        if critical_failures > 0:
+            print(
+                f"[runner][WARN] ❌ {critical_failures} CRITICAL violation(s) — pipeline BLOCKED"
+            )
+            sys.exit(2)
+        elif has_failures:
+            print("[runner][WARN] ⚠  Non-critical violations detected — pipeline NOT blocked")
         else:
             print("[runner][WARN] ✓  All checks passed")
         sys.exit(0)
 
     else:
         # ENFORCE (default): block on CRITICAL or HIGH violations
-        if has_failures:
-            print("[runner][ENFORCE] ❌ VIOLATIONS DETECTED — pipeline BLOCKED")
-            sys.exit(report["exit_code"])
+        if critical_failures > 0 or high_failures > 0:
+            print(
+                f"[runner][ENFORCE] ❌ {critical_failures} CRITICAL, {high_failures} HIGH "
+                f"violation(s) — pipeline BLOCKED"
+            )
+            sys.exit(2)
+        elif has_failures:
+            print("[runner][ENFORCE] ⚠  Low/medium violations only — pipeline NOT blocked")
         else:
             print("[runner][ENFORCE] ✓  All checks passed")
-            sys.exit(0)
+        sys.exit(0)
 
 
 if __name__ == "__main__":
