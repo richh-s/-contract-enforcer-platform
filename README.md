@@ -4,7 +4,7 @@ An end-to-end data contract enforcement platform implementing the Bitol ODCS v3 
 Generates contracts from raw data, validates at the consumer boundary, detects schema
 evolution, runs AI-powered checks, and produces a stakeholder enforcer report.
 
-## Quick Start (full reproduction)
+## Quick Start (fresh clone)
 
 ```bash
 git clone <repo>
@@ -15,9 +15,9 @@ pip install -r requirements.txt
 
 ---
 
-## Phase 1 — Generate Contracts
+## Script 1 — Generate Contracts (`contracts/generator.py`)
 
-Generate Bitol YAML + dbt schema.yml + schema snapshot from raw JSONL:
+Generates a Bitol YAML contract + dbt schema.yml + immutable snapshot from raw JSONL.
 
 ```bash
 # Week 3 extractions
@@ -35,124 +35,166 @@ python contracts/generator.py \
   --output generated_contracts/
 ```
 
-**Outputs:**
-- `generated_contracts/week3_document_refinery_extractions.yaml` — Bitol contract
+**Expected output:**
+```
+[generator] Profiling outputs/week3/extractions.jsonl ...
+[generator] 100 records, 5 fields
+[generator] Contract written : generated_contracts/week3_document_refinery_extractions.yaml
+[generator] dbt schema written: generated_contracts/week3_document_refinery_extractions_dbt.yml
+[generator] Snapshot written : schema_snapshots/week3_document_refinery_extractions/20260402T....yaml
+```
+
+**Artifacts produced:**
+- `generated_contracts/week3_document_refinery_extractions.yaml` — Bitol ODCS v3 contract
 - `generated_contracts/week3_document_refinery_extractions_dbt.yml` — dbt schema tests
-- `schema_snapshots/week3-document-refinery-extractions/<ts>.yaml` — immutable snapshot
+- `schema_snapshots/week3_document_refinery_extractions/<ts>.yaml` — immutable snapshot
 
 ---
 
-## Phase 2 — Run Validation (Consumer-Side Enforcement)
+## Script 2 — Validate Data (`contracts/runner.py`)
 
-The runner is a **consumer-side** tool — it enforces what consumers expect before data is processed.
+Consumer-side enforcement — validates a JSONL dataset against a Bitol contract.
 
 ```bash
-# Validate clean data
+# Validate clean data (expect 1 MEDIUM violation: non_zero_variance)
 python contracts/runner.py \
-  --contract generated_contracts/week3_extractions.yaml \
+  --contract generated_contracts/week3_document_refinery_extractions.yaml \
   --data outputs/week3/extractions.jsonl \
-  --output validation_reports/week3_final.json
+  --output validation_reports/week3_final.json \
+  --mode ENFORCE
 
-# Validate violated data (confidence scale injected as 0-100)
+# Validate violated data (confidence injected as 90.0 instead of 0.9)
 python contracts/runner.py \
-  --contract generated_contracts/week3_extractions.yaml \
+  --contract generated_contracts/week3_document_refinery_extractions.yaml \
   --data outputs/week3/extractions_violated.jsonl \
-  --output validation_reports/week3_violated.json
+  --output validation_reports/week3_violated.json \
+  --mode ENFORCE
 
 # Week 5 events
 python contracts/runner.py \
-  --contract generated_contracts/week5_events.yaml \
+  --contract generated_contracts/week5_event_stream.yaml \
   --data outputs/week5/events.jsonl \
-  --output validation_reports/week5_final.json
+  --output validation_reports/week5_final.json \
+  --mode ENFORCE
 ```
 
-**Expected violations on violated data:**
+**Enforcement modes:** `AUDIT` (log only, exit 0) | `WARN` (warn, exit 0) | `ENFORCE` (block on CRITICAL/HIGH, default)
+
+**Expected output on clean data:**
+```
+[runner] mode=ENFORCE | 11 checks | 7 passed | 1 failed | 0 warned | 3 errored
+[runner][ENFORCE] ❌ VIOLATIONS DETECTED — pipeline BLOCKED
+```
+Exit code: `2`
+
+**Expected output on violated data:**
+```
+[runner] mode=ENFORCE | 11 checks | 5 passed | 3 failed | 0 warned | 3 errored
+[runner][ENFORCE] ❌ VIOLATIONS DETECTED — pipeline BLOCKED
+```
 - `CRITICAL` — confidence range: 50 records outside [0.0, 1.0] (actual: 90.0)
-- `HIGH`     — z-score drift: all confidence values identical (std=0)
-- `MEDIUM`   — non-zero variance: extractor returning hard-coded default
+- `HIGH`     — z-score drift: z=99.0 (baseline_mean=0.9, current_mean=90.0)
+- `MEDIUM`   — non-zero variance: all confidence values identical
+
+Exit code: `2`
 
 ---
 
-## Phase 3 — Schema Evolution Analysis
+## Script 3 — Schema Evolution Analysis (`contracts/schema_analyzer.py`)
 
-Diff consecutive snapshots, classify changes, compute blast radius via registry:
+Diffs consecutive snapshots, classifies changes, computes registry-first blast radius.
 
 ```bash
-# Week 3 — detects CRITICAL confidence scale break (0.9 → 100.0)
+# Week 3 — detects CRITICAL confidence scale break (0.9 → 90.0)
 python contracts/schema_analyzer.py \
-  --contract-id week3-extractions \
-  --since "7 days ago" \
+  --contract-id week3_document_refinery_extractions \
   --output validation_reports/schema_evolution_week3.json
 
-# Week 5 — detects ENUM_ADDITION (LoanApproved/LoanRejected) + REMOVE_COLUMN
+# Week 5 — detects ENUM_ADDITION (LoanApproved/LoanRejected)
 python contracts/schema_analyzer.py \
   --contract-id week5-events \
   --output validation_reports/schema_evolution_week5.json
-
-# Week 3 document refinery (older schema: format)
-python contracts/schema_analyzer.py \
-  --contract-id week3_document_refinery_extractions \
-  --output validation_reports/schema_evolution_week3_refinery.json
 ```
 
-**Outputs per run:**
-- `validation_reports/schema_evolution_<id>.json` — full evolution report
-- `validation_reports/migration_impact_<id>_<ts>.json` — migration impact artifact
-
+**Expected output:**
+```
+[schema_analyzer] Snapshots found: 2
+[schema_analyzer] Comparing: 20260401T184727Z → 20260402T090000Z
+[schema_analyzer] Changes detected: 3 (2 breaking)
+[schema_analyzer] Blast radius: 3 consumers affected
+[schema_analyzer] Report written: validation_reports/schema_evolution_week3.json
+```
 **Exit codes:** `0` = compatible, `2` = breaking changes detected (CI-catchable)
+
+**Artifacts produced:**
+- `validation_reports/schema_evolution_{id}.json` — full diff + blast radius
+- `validation_reports/migration_impact_{id}_{ts}.json` — migration impact artifact
 
 ---
 
-## Phase 4A — AI Contract Extensions
+## Script 4 — AI Contract Extensions (`contracts/ai_extensions.py`)
 
-Three AI validation checks against real data:
+Three AI validation checks: embedding drift, prompt validation, LLM output schema.
 
 ```bash
+# Run all three checks
 python contracts/ai_extensions.py \
   --mode all \
   --extractions outputs/week3/extractions.jsonl \
   --verdicts    outputs/week2/verdicts.jsonl \
   --output      validation_reports/ai_extensions.json
-```
 
-| Extension | What it detects |
-|-----------|----------------|
-| Embedding Drift | Semantic shift in extracted text (LSA / OpenAI when key set) |
-| Prompt Validation | Records with invalid doc_id, confidence outside [0.0,1.0]; quarantined to `outputs/quarantine/quarantine.jsonl` |
-| LLM Output Schema | Verdicts outside {PASS,FAIL,WARN}; trend vs baseline |
-
-**To verify drift fires on violated data:**
-```bash
-# First — set baseline from clean data
-python contracts/ai_extensions.py --mode prompt \
+# Run on violated data to trigger prompt validation quarantine
+python contracts/ai_extensions.py \
+  --mode prompt \
   --extractions outputs/week3/extractions_violated.jsonl \
-  --verdicts outputs/week2/verdicts.jsonl \
-  --output /tmp/ai_violated.json
-# Expected: quarantined_records=50, status=WARN
+  --verdicts    outputs/week2/verdicts.jsonl \
+  --output      /tmp/ai_violated.json
 ```
+
+**Expected output (clean data):**
+```
+[ai_extensions] Embedding drift  : status=PASS, drift=0.0000, method=lsa_fallback
+[ai_extensions] Prompt validation: status=PASS, valid=100/100, quarantined=0
+[ai_extensions] LLM output schema: status=PASS, violations=0/3
+[ai_extensions] Report written: validation_reports/ai_extensions.json
+```
+
+**Expected output (violated data, --mode prompt):**
+```
+[ai_extensions] Prompt validation: status=WARN, valid=50/100, quarantined=50
+[ai_extensions] Quarantine written: outputs/quarantine/quarantine.jsonl
+```
+- 50 records quarantined (confidence=90.0 fails JSON Schema range [0.0, 1.0])
 
 ---
 
-## Phase 4B — Enforcer Report
+## Script 5 — Enforcer Report (`contracts/report_generator.py`)
 
-Aggregates all real validation data into one stakeholder report:
+Aggregates all validation data into one stakeholder report with a health score.
 
 ```bash
 python contracts/report_generator.py \
   --output enforcer_report/report_data.json
 ```
 
-**Inputs consumed (nothing hardcoded):**
-- `validation_reports/*.json` — all runner outputs
-- `violation_log/violations.jsonl` — runtime violations
-- `validation_reports/ai_extensions.json` — AI check results
-- `validation_reports/schema_evolution_*.json` — schema diff reports
+**Expected output:**
+```
+[report] Loading validation reports from validation_reports/ ...
+[report] Loaded 3 runner reports, 2 schema evolution reports
+[report] Loading violations from violation_log/violations.jsonl ...
+[report] 4 violations loaded (1 real, 3 injected)
+[report] Health score: 59 / 100
+[report] Report written: enforcer_report/report_data.json
+```
 
 **Health score formula:**
 ```
 base  = (passed / total_checks) × 100
 score = max(0, base − 20 × critical_failures)
 ```
+
+**Artifact produced:** `enforcer_report/report_data.json`
 
 ---
 
@@ -168,17 +210,23 @@ python contracts/generator.py --source outputs/week3/extractions.jsonl \
   --lineage outputs/week4/lineage_snapshots.jsonl --output generated_contracts/
 
 # 3. Run validation (clean + violated)
-python contracts/runner.py --contract generated_contracts/week3_extractions.yaml \
-  --data outputs/week3/extractions.jsonl --output validation_reports/week3_final.json
+python contracts/runner.py \
+  --contract generated_contracts/week3_document_refinery_extractions.yaml \
+  --data outputs/week3/extractions.jsonl \
+  --output validation_reports/week3_final.json --mode ENFORCE
 
-python contracts/runner.py --contract generated_contracts/week3_extractions.yaml \
-  --data outputs/week3/extractions_violated.jsonl --output validation_reports/week3_violated.json
+python contracts/runner.py \
+  --contract generated_contracts/week3_document_refinery_extractions.yaml \
+  --data outputs/week3/extractions_violated.jsonl \
+  --output validation_reports/week3_violated.json --mode ENFORCE
 
 # 4. Schema evolution
-python contracts/schema_analyzer.py --contract-id week3-extractions \
+python contracts/schema_analyzer.py \
+  --contract-id week3_document_refinery_extractions \
   --output validation_reports/schema_evolution_week3.json
 
-python contracts/schema_analyzer.py --contract-id week5-events \
+python contracts/schema_analyzer.py \
+  --contract-id week5-events \
   --output validation_reports/schema_evolution_week5.json
 
 # 5. AI extensions
@@ -197,25 +245,31 @@ python contracts/report_generator.py --output enforcer_report/report_data.json
 
 ```
 contracts/
-  generator.py          Phase 1 — contract + dbt + snapshot generator
-  runner.py             Phase 2 — consumer-side validation runner
-  schema_analyzer.py    Phase 3 — schema evolution analyzer (registry-first blast radius)
-  registry.py           Contract registry — PRIMARY blast radius source
-  ai_extensions.py      Phase 4A — embedding drift, prompt validation, LLM output schema
-  report_generator.py   Phase 4B — enforcer report aggregator
+  generator.py          Script 1 — contract + dbt + snapshot generator
+  runner.py             Script 2 — consumer-side validation runner (--mode AUDIT|WARN|ENFORCE)
+  schema_analyzer.py    Script 3 — schema evolution analyzer (registry-first blast radius)
+  attributor.py         Violation attributor — blame chain + commit + blast radius
+  registry.py           Contract registry — subscriptions.yaml primary, lineage enrichment
+  ai_extensions.py      Script 4 — embedding drift, prompt validation, LLM output schema
+  report_generator.py   Script 5 — enforcer report aggregator
+
+contract_registry/
+  subscriptions.yaml    PRIMARY consumer subscription catalog (11 consumers, 5 contracts)
 
 generated_contracts/    Bitol YAML + dbt schema.yml per contract
-schema_snapshots/       Immutable timestamped contract snapshots (≥2 per contract)
+schema_snapshots/       Immutable timestamped snapshots (≥2 per contract)
 validation_reports/     Runner JSON reports + schema evolution + AI extension results
-violation_log/          Runtime violations.jsonl (blame chain + blast radius)
-enforcer_report/        report_data.json — stakeholder enforcer report
+violation_log/
+  violations.jsonl      4 violations (1 real, 3 injected; comment header documents injection)
+enforcer_report/
+  report_data.json      Machine-generated stakeholder report (health_score=59)
 outputs/
-  week3/extractions.jsonl         Clean data
-  week3/extractions_violated.jsonl Injected violation (confidence=90, not 0.9)
-  quarantine/quarantine.jsonl      Records blocked by prompt validation
+  week3/extractions.jsonl           Clean extraction data (100 records)
+  week3/extractions_violated.jsonl  Injected violation: confidence=90.0 (was 0.9) in 50/100 records
+  quarantine/quarantine.jsonl       Records blocked by prompt validation
 ```
 
-## Key Artifacts (pre-generated, committed)
+## Key Pre-Generated Artifacts
 
 | Artifact | Location |
 |----------|----------|
@@ -225,7 +279,8 @@ outputs/
 | Schema evolution (week5) | `validation_reports/schema_evolution_week5.json` |
 | AI extensions | `validation_reports/ai_extensions.json` |
 | Enforcer report | `enforcer_report/report_data.json` |
-| Violations (3 records) | `violation_log/violations.jsonl` |
+| Violations (4 records) | `violation_log/violations.jsonl` |
+| Registry index | `schema_snapshots/registry_index.json` |
 
 ## Development
 

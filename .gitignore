@@ -145,8 +145,8 @@ cython_debug/
 
 # Data and generated files
 # generated_contracts/ — tracked so reviewers can inspect contract artifacts
-validation_reports/
-violation_log/
-schema_snapshots/
+# validation_reports/ — tracked: required submission artifacts
+# violation_log/ — tracked: required submission artifacts (≥3 violation records)
+# schema_snapshots/ — tracked: required submission artifacts (≥2 snapshots per contract)
 outputs/
 # enforcer_report/ — tracked so interim report is submitted

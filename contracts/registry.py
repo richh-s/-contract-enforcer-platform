@@ -11,7 +11,11 @@ Design principle (from spec):
    The registry is the primary source for identifying consumers;
    lineage is enrichment."
 
-Registry index structure (built from generated_contracts/*.yaml):
+Loading order (primary → secondary):
+  1. contract_registry/subscriptions.yaml  ← PRIMARY authoritative subscriptions
+  2. generated_contracts/*.yaml lineage     ← adds git context, snapshot IDs
+
+Registry index structure:
   {
     contract_id: {
       "fields":     [list of field paths],
@@ -19,7 +23,8 @@ Registry index structure (built from generated_contracts/*.yaml):
         {
           "consumer_id": "week4-cartographer",
           "fields_consumed": [...],
-          "breaking_if_changed": [...]
+          "breaking_if_changed": [...],
+          "enforcement_mode": "ENFORCE | WARN | AUDIT"
         }
       ]
     }
@@ -68,7 +73,47 @@ class ContractRegistry:
     # ── Index build ───────────────────────────────────────────────────────────
 
     def _load(self) -> None:
-        """Build registry index from all contracts in generated_contracts/."""
+        """
+        Build registry index.
+
+        Step 1 — subscriptions.yaml (PRIMARY):
+          contract_registry/subscriptions.yaml is the authoritative list of
+          every consumer subscription. It is loaded first so that blast radius
+          queries always reflect the full declared subscription set, even for
+          contracts whose generated YAML has an empty lineage.downstream.
+
+        Step 2 — generated_contracts/*.yaml (ENRICHMENT):
+          Scans generated contracts to pull in field lists and any lineage
+          consumers not already declared in subscriptions.yaml.
+          Duplicate consumer entries (same consumer_id for same contract) are
+          skipped — subscriptions.yaml always wins.
+        """
+        # ── Step 1: Load subscriptions.yaml as PRIMARY consumer source ────────
+        subs_path = _HERE / "contract_registry" / "subscriptions.yaml"
+        if subs_path.exists():
+            try:
+                with open(subs_path) as fh:
+                    subs = yaml.safe_load(fh) or {}
+                for sub in subs.get("subscriptions") or []:
+                    cid = sub.get("contract_id", "")
+                    if not cid:
+                        continue
+                    if cid not in self._index:
+                        self._index[cid] = {
+                            "fields":      [],
+                            "consumers":   [],
+                            "source_file": str(subs_path),
+                        }
+                    seen = {c["consumer_id"] for c in self._index[cid]["consumers"]}
+                    for consumer in sub.get("consumers") or []:
+                        c_id = consumer.get("consumer_id", "unknown")
+                        if c_id not in seen:
+                            self._index[cid]["consumers"].append(consumer)
+                            seen.add(c_id)
+            except Exception:
+                pass  # malformed subscriptions.yaml — fall through to contracts
+
+        # ── Step 2: Enrich with field lists from generated_contracts/*.yaml ───
         for path in sorted(self._contracts_dir.glob("*.yaml")):
             if path.name.endswith("_dbt.yml"):
                 continue
@@ -103,20 +148,26 @@ class ContractRegistry:
             for fname in (model_def.get("fields") or {}).keys():
                 fields.append(fname)
 
-        # Consumers declared in lineage.downstream
-        consumers: list[dict] = []
+        # Consumers declared in lineage.downstream — only add if not already
+        # present from subscriptions.yaml (subscriptions.yaml is authoritative)
+        existing = self._index.get(contract_id, {})
+        seen_ids = {c["consumer_id"] for c in existing.get("consumers", [])}
+        new_consumers: list[dict] = list(existing.get("consumers", []))
         for node in downstream:
-            consumers.append({
-                "consumer_id":       node.get("id", "unknown"),
-                "description":       node.get("description", ""),
-                "fields_consumed":   node.get("fields_consumed") or [],
-                "breaking_if_changed": node.get("breaking_if_changed") or [],
-                "source_contract":   contract_id,
-            })
+            c_id = node.get("id", "unknown")
+            if c_id not in seen_ids:
+                new_consumers.append({
+                    "consumer_id":       c_id,
+                    "description":       node.get("description", ""),
+                    "fields_consumed":   node.get("fields_consumed") or [],
+                    "breaking_if_changed": node.get("breaking_if_changed") or [],
+                    "source_contract":   contract_id,
+                })
+                seen_ids.add(c_id)
 
         self._index[contract_id] = {
             "fields":    fields,
-            "consumers": consumers,
+            "consumers": new_consumers,
             "source_file": str(path),
         }
 

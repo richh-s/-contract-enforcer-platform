@@ -1,0 +1,214 @@
+# contract_registry/subscriptions.yaml
+#
+# PRIMARY source of truth for all consumer subscriptions.
+# This file declares which consumers depend on which contracts,
+# what fields they consume, and which fields are breaking-if-changed.
+#
+# Usage (spec requirement):
+#   The ContractRegistry loads this file FIRST as the authoritative
+#   subscription list. contract-level lineage.downstream adds depth
+#   (git context, snapshot IDs) but cannot override subscriptions here.
+#
+# Breaking field reasoning:
+#   A field is "breaking_if_changed" when the consumer has a hard
+#   dependency on the field's type, range, or semantics — any schema
+#   change to that field requires the consumer to change code or fail.
+
+version: "1.0"
+generated_at: "2026-04-01T00:00:00Z"
+
+subscriptions:
+
+  # ──────────────────────────────────────────────────────────────────
+  # WEEK 3 — Document Refinery Extractions
+  # ──────────────────────────────────────────────────────────────────
+
+  - contract_id: week3-document-refinery-extractions
+    consumers:
+
+      - consumer_id: week4-cartographer
+        description: >
+          Cartographer ingests doc_id as node identity and extracted_facts
+          as node metadata in the lineage graph. Uses confidence as an edge
+          weight for attribution scoring. Any change to the confidence scale
+          (e.g., 0–1 → 0–100) silently inflates attribution by 100× without
+          any runtime error — a silent corruption failure mode.
+        fields_consumed:
+          - doc_id
+          - extracted_facts
+          - extraction_model
+        breaking_if_changed:
+          - extracted_facts.confidence   # edge weight — scale change is silent corruption
+          - doc_id                       # node identity — format change breaks graph joins
+        enforcement_mode: ENFORCE
+
+      - consumer_id: week5-event-publisher
+        description: >
+          Event publisher reads confidence to gate DecisionGenerated events.
+          A threshold of confidence > 0.7 becomes always-true when confidence
+          is on the 0–100 scale, bypassing the quality gate entirely.
+        fields_consumed:
+          - doc_id
+          - confidence
+        breaking_if_changed:
+          - confidence                   # gate logic — scale change disables quality gate
+        enforcement_mode: ENFORCE
+
+      - consumer_id: contract-enforcer-runner
+        description: >
+          The validation runner (consumer-side enforcement) reads all fields
+          to evaluate contract compliance. Used in AUDIT mode to detect
+          violations without blocking the pipeline.
+        fields_consumed:
+          - doc_id
+          - extracted_facts
+          - confidence
+        breaking_if_changed:
+          - doc_id
+          - extracted_facts.confidence
+        enforcement_mode: AUDIT
+
+  # ──────────────────────────────────────────────────────────────────
+  # WEEK 5 — Event Stream
+  # ──────────────────────────────────────────────────────────────────
+
+  - contract_id: week5-event-stream
+    consumers:
+
+      - consumer_id: audit-trail-service
+        description: >
+          Audit service consumes all events for compliance logging and
+          accountability. event_type drives routing to the correct audit
+          handler. An unknown event_type is dropped, creating audit gaps.
+        fields_consumed:
+          - event_id
+          - event_type
+          - timestamp
+          - actor_id
+          - source_system
+          - schema_version
+        breaking_if_changed:
+          - event_id       # audit record identity
+          - event_type     # routes to compliance handler
+          - schema_version # deserializer routing
+        enforcement_mode: ENFORCE
+
+      - consumer_id: week4-cartographer
+        description: >
+          Cartographer ingests event metadata as graph nodes to build
+          the causal event chain.
+        fields_consumed:
+          - event_id
+          - event_type
+          - stream_id
+          - actor_id
+        breaking_if_changed:
+          - event_id
+          - event_type
+        enforcement_mode: WARN
+
+      - consumer_id: decision-replay-service
+        description: >
+          Replay service reconstructs decision sequences from the event log.
+          Relies on stream_position being monotonically increasing within
+          each stream_id. A reset or gap causes replays to produce
+          incorrect decision sequences.
+        fields_consumed:
+          - event_id
+          - stream_id
+          - stream_position
+          - event_type
+          - timestamp
+        breaking_if_changed:
+          - stream_position  # monotonicity — reset causes incorrect replay
+          - stream_id        # partition key for replay
+        enforcement_mode: ENFORCE
+
+  # ──────────────────────────────────────────────────────────────────
+  # WEEK 1 — Intent Records
+  # ──────────────────────────────────────────────────────────────────
+
+  - contract_id: week1-intent-records
+    consumers:
+
+      - consumer_id: week3-document-refinery
+        description: >
+          Document refinery reads intent records to determine extraction
+          scope and target document set.
+        fields_consumed:
+          - intent_id
+          - target_docs
+          - extraction_config
+        breaking_if_changed:
+          - intent_id
+        enforcement_mode: WARN
+
+  # ──────────────────────────────────────────────────────────────────
+  # WEEK 4 — Lineage Snapshots
+  # ──────────────────────────────────────────────────────────────────
+
+  - contract_id: week4-lineage-snapshots
+    consumers:
+
+      - consumer_id: contract-enforcer-attributor
+        description: >
+          The blame-chain attributor traverses the lineage graph to
+          identify which pipeline node introduced a violation.
+          Relies on snapshot_id being stable and nodes[].id being unique.
+        fields_consumed:
+          - snapshot_id
+          - nodes
+          - edges
+        breaking_if_changed:
+          - snapshot_id    # attribution key — change breaks blame-chain joins
+          - nodes          # graph structure — any rename breaks traversal
+        enforcement_mode: ENFORCE
+
+      - consumer_id: schema-evolution-analyzer
+        description: >
+          Schema evolution analyzer reads lineage to enrich blast radius
+          with pipeline-level impact. Uses downstream consumer declarations
+          to identify which nodes are affected by schema changes.
+        fields_consumed:
+          - snapshot_id
+          - downstream
+        breaking_if_changed:
+          - downstream     # blast radius source — change breaks impact analysis
+        enforcement_mode: AUDIT
+
+  # ──────────────────────────────────────────────────────────────────
+  # LANGSMITH TRACES
+  # ──────────────────────────────────────────────────────────────────
+
+  - contract_id: langsmith-traces
+    consumers:
+
+      - consumer_id: ai-quality-monitor
+        description: >
+          AI quality monitor reads trace runs to compute model performance
+          metrics and detect prompt degradation. total_tokens drives cost
+          attribution; run_type drives routing to the correct scorer.
+        fields_consumed:
+          - run_id
+          - run_type
+          - total_tokens
+          - start_time
+          - end_time
+          - error
+        breaking_if_changed:
+          - run_id         # trace identity
+          - run_type       # scorer routing — unknown type drops the trace
+          - total_tokens   # cost attribution — null breaks budget reporting
+        enforcement_mode: WARN
+
+      - consumer_id: contract-enforcer-runner
+        description: >
+          Validation runner audits trace outputs for schema compliance.
+          Used in AUDIT mode — violations are logged but pipeline not blocked.
+        fields_consumed:
+          - run_id
+          - run_type
+          - total_tokens
+        breaking_if_changed:
+          - run_id
+        enforcement_mode: AUDIT

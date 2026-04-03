@@ -980,9 +980,10 @@ def assemble_report(
 # ── MAIN ORCHESTRATOR ──────────────────────────────────────────────────────────
 
 def run_validation(
-    contract_path: str,
-    data_path:     str,
-    output_path:   str,
+    contract_path:    str,
+    data_path:        str,
+    output_path:      str,
+    enforcement_mode: str = "ENFORCE",
 ) -> dict:
     print(f"[runner] Loading contract : {contract_path}")
     contract    = load_contract(contract_path)
@@ -1014,6 +1015,7 @@ def run_validation(
     all_checks += run_baseline_drift_checks(records, baseline, source_type)
 
     report = assemble_report(all_checks, contract_id, data_path)
+    report["enforcement_mode"] = enforcement_mode
 
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -1034,35 +1036,74 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--data",     required=True, help="Path to JSONL data file")
     p.add_argument("--output",   required=False, default=None,
                    help="Path to write JSON validation report (default: validation_reports/<contract_id>.json)")
+    p.add_argument(
+        "--mode",
+        choices=["AUDIT", "WARN", "ENFORCE"],
+        default="ENFORCE",
+        help=(
+            "Enforcement mode (default: ENFORCE). "
+            "AUDIT  — log all violations, always exit 0. "
+            "WARN   — log violations, print warnings, exit 0 even on failures. "
+            "ENFORCE — block on CRITICAL/HIGH violations (exit 2)."
+        ),
+    )
     return p
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    mode = args.mode.upper()
+
     # Derive default output path from contract name when not provided
     if args.output is None:
         contract_stem = Path(args.contract).stem
         output_path = str(Path("validation_reports") / f"{contract_stem}.json")
     else:
         output_path = args.output
+
     report = run_validation(
         contract_path=args.contract,
         data_path=args.data,
         output_path=output_path,
+        enforcement_mode=mode,
     )
+
     status_line = (
-        f"[runner] {report['total_checks']} checks | "
+        f"[runner] mode={mode} | "
+        f"{report['total_checks']} checks | "
         f"{report['passed']} passed | "
         f"{report['failed']} failed | "
         f"{report['warned']} warned | "
         f"{report['errored']} errored"
     )
     print(status_line)
-    if report["failed"] > 0:
-        print("[runner] ❌ VIOLATIONS DETECTED — see report for details")
+
+    has_failures = report["failed"] > 0
+
+    if mode == "AUDIT":
+        # AUDIT: log everything, never block the pipeline
+        if has_failures:
+            print("[runner][AUDIT] Violations recorded — pipeline NOT blocked")
+        else:
+            print("[runner][AUDIT] ✓  No violations")
+        sys.exit(0)
+
+    elif mode == "WARN":
+        # WARN: surface violations as warnings, but still exit 0
+        if has_failures:
+            print("[runner][WARN] ⚠  Violations detected — pipeline NOT blocked (WARN mode)")
+        else:
+            print("[runner][WARN] ✓  All checks passed")
+        sys.exit(0)
+
     else:
-        print("[runner] ✓  All checks passed (or warned)")
-    sys.exit(report["exit_code"])
+        # ENFORCE (default): block on CRITICAL or HIGH violations
+        if has_failures:
+            print("[runner][ENFORCE] ❌ VIOLATIONS DETECTED — pipeline BLOCKED")
+            sys.exit(report["exit_code"])
+        else:
+            print("[runner][ENFORCE] ✓  All checks passed")
+            sys.exit(0)
 
 
 if __name__ == "__main__":

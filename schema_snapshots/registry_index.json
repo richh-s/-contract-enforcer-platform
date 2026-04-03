@@ -1,27 +1,191 @@
 {
   "week3-document-refinery-extractions": {
     "fields": [],
-    "consumers": [],
+    "consumers": [
+      {
+        "consumer_id": "week4-cartographer",
+        "description": "Cartographer ingests doc_id as node identity and extracted_facts as node metadata in the lineage graph. Uses confidence as an edge weight for attribution scoring. Any change to the confidence scale (e.g., 0\u20131 \u2192 0\u2013100) silently inflates attribution by 100\u00d7 without any runtime error \u2014 a silent corruption failure mode.\n",
+        "fields_consumed": [
+          "doc_id",
+          "extracted_facts",
+          "extraction_model"
+        ],
+        "breaking_if_changed": [
+          "extracted_facts.confidence",
+          "doc_id"
+        ],
+        "enforcement_mode": "ENFORCE"
+      },
+      {
+        "consumer_id": "week5-event-publisher",
+        "description": "Event publisher reads confidence to gate DecisionGenerated events. A threshold of confidence > 0.7 becomes always-true when confidence is on the 0\u2013100 scale, bypassing the quality gate entirely.\n",
+        "fields_consumed": [
+          "doc_id",
+          "confidence"
+        ],
+        "breaking_if_changed": [
+          "confidence"
+        ],
+        "enforcement_mode": "ENFORCE"
+      },
+      {
+        "consumer_id": "contract-enforcer-runner",
+        "description": "The validation runner (consumer-side enforcement) reads all fields to evaluate contract compliance. Used in AUDIT mode to detect violations without blocking the pipeline.\n",
+        "fields_consumed": [
+          "doc_id",
+          "extracted_facts",
+          "confidence"
+        ],
+        "breaking_if_changed": [
+          "doc_id",
+          "extracted_facts.confidence"
+        ],
+        "enforcement_mode": "AUDIT"
+      }
+    ],
     "source_file": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/generated_contracts/week3_extractions.yaml"
   },
-  "langsmith-traces": {
+  "week5-event-stream": {
     "fields": [],
-    "consumers": [],
-    "source_file": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/generated_contracts/langsmith_traces.yaml"
+    "consumers": [
+      {
+        "consumer_id": "audit-trail-service",
+        "description": "Audit service consumes all events for compliance logging and accountability. event_type drives routing to the correct audit handler. An unknown event_type is dropped, creating audit gaps.\n",
+        "fields_consumed": [
+          "event_id",
+          "event_type",
+          "timestamp",
+          "actor_id",
+          "source_system",
+          "schema_version"
+        ],
+        "breaking_if_changed": [
+          "event_id",
+          "event_type",
+          "schema_version"
+        ],
+        "enforcement_mode": "ENFORCE"
+      },
+      {
+        "consumer_id": "week4-cartographer",
+        "description": "Cartographer ingests event metadata as graph nodes to build the causal event chain.\n",
+        "fields_consumed": [
+          "event_id",
+          "event_type",
+          "stream_id",
+          "actor_id"
+        ],
+        "breaking_if_changed": [
+          "event_id",
+          "event_type"
+        ],
+        "enforcement_mode": "WARN"
+      },
+      {
+        "consumer_id": "decision-replay-service",
+        "description": "Replay service reconstructs decision sequences from the event log. Relies on stream_position being monotonically increasing within each stream_id. A reset or gap causes replays to produce incorrect decision sequences.\n",
+        "fields_consumed": [
+          "event_id",
+          "stream_id",
+          "stream_position",
+          "event_type",
+          "timestamp"
+        ],
+        "breaking_if_changed": [
+          "stream_position",
+          "stream_id"
+        ],
+        "enforcement_mode": "ENFORCE"
+      }
+    ],
+    "source_file": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/generated_contracts/week5_events.yaml"
   },
   "week1-intent-records": {
     "fields": [],
-    "consumers": [],
+    "consumers": [
+      {
+        "consumer_id": "week3-document-refinery",
+        "description": "Document refinery reads intent records to determine extraction scope and target document set.\n",
+        "fields_consumed": [
+          "intent_id",
+          "target_docs",
+          "extraction_config"
+        ],
+        "breaking_if_changed": [
+          "intent_id"
+        ],
+        "enforcement_mode": "WARN"
+      }
+    ],
     "source_file": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/generated_contracts/week1_intent_records.yaml"
   },
   "week4-lineage-snapshots": {
     "fields": [],
-    "consumers": [],
+    "consumers": [
+      {
+        "consumer_id": "contract-enforcer-attributor",
+        "description": "The blame-chain attributor traverses the lineage graph to identify which pipeline node introduced a violation. Relies on snapshot_id being stable and nodes[].id being unique.\n",
+        "fields_consumed": [
+          "snapshot_id",
+          "nodes",
+          "edges"
+        ],
+        "breaking_if_changed": [
+          "snapshot_id",
+          "nodes"
+        ],
+        "enforcement_mode": "ENFORCE"
+      },
+      {
+        "consumer_id": "schema-evolution-analyzer",
+        "description": "Schema evolution analyzer reads lineage to enrich blast radius with pipeline-level impact. Uses downstream consumer declarations to identify which nodes are affected by schema changes.\n",
+        "fields_consumed": [
+          "snapshot_id",
+          "downstream"
+        ],
+        "breaking_if_changed": [
+          "downstream"
+        ],
+        "enforcement_mode": "AUDIT"
+      }
+    ],
     "source_file": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/generated_contracts/week4_lineage.yaml"
   },
-  "week5-event-stream": {
+  "langsmith-traces": {
     "fields": [],
-    "consumers": [],
-    "source_file": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/generated_contracts/week5_events.yaml"
+    "consumers": [
+      {
+        "consumer_id": "ai-quality-monitor",
+        "description": "AI quality monitor reads trace runs to compute model performance metrics and detect prompt degradation. total_tokens drives cost attribution; run_type drives routing to the correct scorer.\n",
+        "fields_consumed": [
+          "run_id",
+          "run_type",
+          "total_tokens",
+          "start_time",
+          "end_time",
+          "error"
+        ],
+        "breaking_if_changed": [
+          "run_id",
+          "run_type",
+          "total_tokens"
+        ],
+        "enforcement_mode": "WARN"
+      },
+      {
+        "consumer_id": "contract-enforcer-runner",
+        "description": "Validation runner audits trace outputs for schema compliance. Used in AUDIT mode \u2014 violations are logged but pipeline not blocked.\n",
+        "fields_consumed": [
+          "run_id",
+          "run_type",
+          "total_tokens"
+        ],
+        "breaking_if_changed": [
+          "run_id"
+        ],
+        "enforcement_mode": "AUDIT"
+      }
+    ],
+    "source_file": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/generated_contracts/langsmith_traces.yaml"
   }
 }
