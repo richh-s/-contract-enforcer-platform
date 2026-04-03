@@ -1,0 +1,27 @@
+{
+  "week3-document-refinery-extractions": {
+    "fields": [],
+    "consumers": [],
+    "source_file": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/generated_contracts/week3_extractions.yaml"
+  },
+  "langsmith-traces": {
+    "fields": [],
+    "consumers": [],
+    "source_file": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/generated_contracts/langsmith_traces.yaml"
+  },
+  "week1-intent-records": {
+    "fields": [],
+    "consumers": [],
+    "source_file": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/generated_contracts/week1_intent_records.yaml"
+  },
+  "week4-lineage-snapshots": {
+    "fields": [],
+    "consumers": [],
+    "source_file": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/generated_contracts/week4_lineage.yaml"
+  },
+  "week5-event-stream": {
+    "fields": [],
+    "consumers": [],
+    "source_file": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/generated_contracts/week5_events.yaml"
+  }
+}

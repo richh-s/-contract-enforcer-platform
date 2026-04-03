@@ -1,6 +1,6 @@
 {
-  "report_id": "enforcer-20260402T091220Z",
-  "generated_at": "2026-04-02T09:12:20.349827+00:00",
+  "report_id": "enforcer-20260403T080306Z",
+  "generated_at": "2026-04-03T08:03:06.227812+00:00",
   "report_version": "4.0.0",
   "data_health_score": 59,
   "health_score_breakdown": {
@@ -136,6 +136,24 @@
       "required_action": "STOP deployment and execute migration checklist."
     },
     {
+      "contract_id": "week3_document_refinery_extractions",
+      "old_snapshot": "20260401T184727Z.yaml",
+      "new_snapshot": "20260402T090000Z.yaml",
+      "compatibility_verdict": "BREAKING",
+      "migration_required": true,
+      "total_changes": 4,
+      "breaking_changes": 1,
+      "critical_issues": 0,
+      "plain_language_summary": "Schema for 'week3_document_refinery_extractions' changed between snapshots 20260401T184727Z.yaml and 20260402T090000Z.yaml. Compatibility: BREAKING. 1 breaking change(s), 0 critical issue(s). Migration is required before deploying.",
+      "top_changes": [
+        "extracted_at: 'extracted_at' renamed to 'extraction_pipeline_version'. All consumers referencing the old name will break.",
+        "entities: 'entities' removed \u2014 BREAKING for all consumers reading this field.",
+        "entity_refs: 'entity_refs' removed \u2014 BREAKING for all consumers reading this field.",
+        "processing_time_ms: 'processing_time_ms' removed \u2014 BREAKING for all consumers reading this field."
+      ],
+      "required_action": "STOP deployment and execute migration checklist."
+    },
+    {
       "contract_id": "week5-events",
       "old_snapshot": "20260401T123909Z.yaml",
       "new_snapshot": "20260402T090000Z.yaml",
@@ -215,7 +233,15 @@
       "fix": "confidence = value / 100.0"
     },
     {
-      "priority": 7,
+      "priority": 6,
+      "severity": "HIGH",
+      "title": "Schema: add backward-compat alias for 'extracted_at' in week3_document_refinery_extractions",
+      "action": "Field 'extracted_at' was renamed. Add an alias in the pipeline output so existing consumers do not crash with KeyError.",
+      "field": "extracted_at",
+      "contract": "week3_document_refinery_extractions"
+    },
+    {
+      "priority": 8,
       "severity": "HIGH",
       "title": "System health critical \u2014 run full re-validation after fixes",
       "action": "Data health score is 59/100 (below 60). After applying the above fixes, re-run: python contracts/runner.py --contract-id week3-document-refinery-extractions --source outputs/week3/extractions.jsonl and verify all CRITICAL checks pass."
@@ -227,6 +253,7 @@
     "ai_extensions": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/validation_reports/ai_extensions.json",
     "schema_evolutions": [
       "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/validation_reports/schema_evolution_week3-extractions.json",
+      "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/validation_reports/schema_evolution_week3_document_refinery_extractions.json",
       "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/validation_reports/schema_evolution_week5-events.json"
     ]
   }

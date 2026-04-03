@@ -2,6 +2,18 @@
 contracts/runner.py
 Phase 2 — Bitol v3 Data Contract Validation Runner
 
+Enforcement principle (from spec):
+  "Enforcement always runs at the consumer boundary."
+
+  This runner is a CONSUMER-SIDE tool. It is invoked by a consumer
+  (or on behalf of a consumer) before the data is processed, not by
+  the producer after writing. The contract declares what the consumer
+  expects; the runner enforces those expectations against the actual data.
+
+  The registry (contracts/registry.py) identifies which consumers
+  depend on which fields. Violations are blast-radius-attributed to
+  all registered consumers of the failing field.
+
 CLI usage:
     python contracts/runner.py \\
         --contract generated_contracts/week3_extractions.yaml \\
