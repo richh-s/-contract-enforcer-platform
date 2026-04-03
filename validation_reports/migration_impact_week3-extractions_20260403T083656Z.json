@@ -1,0 +1,308 @@
+{
+  "contract_id": "week3-extractions",
+  "old_snapshot": "20260401T123850Z.yaml",
+  "new_snapshot": "20260402T090000Z.yaml",
+  "overall_compatibility": {
+    "verdict": "BREAKING",
+    "backward": false,
+    "forward": false,
+    "full": false
+  },
+  "changes": [
+    {
+      "field": "fact",
+      "category": "REMOVE_COLUMN",
+      "mapped_to_spec": "REMOVE_COLUMN",
+      "change_type": "PARTIAL",
+      "severity": "HIGH",
+      "compatibility": {
+        "backward": false,
+        "forward": true,
+        "full": false
+      },
+      "old_value": {
+        "type": "string",
+        "required": true,
+        "nullable": false
+      },
+      "new_value": {},
+      "human_diff": "'fact' removed \u2014 BREAKING for all consumers reading this field."
+    },
+    {
+      "field": "entity_type",
+      "category": "ADD_NULLABLE_COLUMN",
+      "mapped_to_spec": "ADD_NULLABLE_COLUMN",
+      "change_type": "PARTIAL",
+      "severity": "LOW",
+      "compatibility": {
+        "backward": true,
+        "forward": false,
+        "full": false
+      },
+      "old_value": {},
+      "new_value": {
+        "type": "string",
+        "required": false,
+        "nullable": true,
+        "enum": [
+          "PERSON",
+          "ORG",
+          "LOCATION",
+          "DATE",
+          "MONEY",
+          "FACT",
+          "OTHER"
+        ]
+      },
+      "human_diff": "'entity_type' added (nullable). Safe addition."
+    },
+    {
+      "field": "extracted_text",
+      "category": "ADD_NON_NULLABLE_COLUMN",
+      "mapped_to_spec": "ADD_NON_NULLABLE_COLUMN",
+      "change_type": "BREAKING",
+      "severity": "HIGH",
+      "compatibility": {
+        "backward": false,
+        "forward": false,
+        "full": false
+      },
+      "old_value": {},
+      "new_value": {
+        "type": "string",
+        "required": true,
+        "nullable": false
+      },
+      "human_diff": "'extracted_text' added (required). BREAKING: existing writers must populate this field."
+    },
+    {
+      "field": "extraction_pipeline_version",
+      "category": "ADD_NULLABLE_COLUMN",
+      "mapped_to_spec": "ADD_NULLABLE_COLUMN",
+      "change_type": "PARTIAL",
+      "severity": "LOW",
+      "compatibility": {
+        "backward": true,
+        "forward": false,
+        "full": false
+      },
+      "old_value": {},
+      "new_value": {
+        "type": "string",
+        "required": false,
+        "nullable": true
+      },
+      "human_diff": "'extraction_pipeline_version' added (nullable). Safe addition."
+    },
+    {
+      "field": "confidence",
+      "category": "CONFIDENCE_SCALE_BREAK",
+      "mapped_to_spec": "TYPE_NARROWING",
+      "change_type": "BREAKING",
+      "severity": "CRITICAL",
+      "compatibility": {
+        "backward": false,
+        "forward": false,
+        "full": false
+      },
+      "old_value": {
+        "type": "number",
+        "required": true,
+        "nullable": false,
+        "minimum": 0.9,
+        "maximum": 0.9
+      },
+      "new_value": {
+        "type": "number",
+        "required": true,
+        "nullable": false,
+        "minimum": 0.0,
+        "maximum": 100.0
+      },
+      "human_diff": "'confidence' maximum changed from 0.9 to 100.0 \u2014 scale is now 0\u2013100 instead of 0.0\u20131.0. CRITICAL: downstream ranking inflated by 100\u00d7."
+    }
+  ],
+  "migration_required": true,
+  "migration_summary": {
+    "total_changes": 5,
+    "breaking_changes": 2,
+    "partial_changes": 3,
+    "compatible_changes": 0,
+    "critical_issues": 1,
+    "high_severity": 2
+  },
+  "blast_radius": {
+    "affected_consumers_count": 3,
+    "registry_consumers": [
+      {
+        "consumer_id": "week5-event-publisher",
+        "description": "Event publisher reads confidence to gate DecisionGenerated events. A threshold of confidence > 0.7 becomes always-true when confidence is on the 0\u2013100 scale, bypassing the quality gate entirely.\n",
+        "fields_consumed": [
+          "doc_id",
+          "confidence"
+        ],
+        "breaking_if_changed": [
+          "confidence"
+        ],
+        "enforcement_mode": "ENFORCE",
+        "registry_source": "week3-document-refinery-extractions",
+        "matched_fields": [
+          "confidence"
+        ]
+      },
+      {
+        "consumer_id": "contract-enforcer-runner",
+        "description": "The validation runner (consumer-side enforcement) reads all fields to evaluate contract compliance. Used in AUDIT mode to detect violations without blocking the pipeline.\n",
+        "fields_consumed": [
+          "doc_id",
+          "extracted_facts",
+          "confidence"
+        ],
+        "breaking_if_changed": [
+          "doc_id",
+          "extracted_facts.confidence"
+        ],
+        "enforcement_mode": "AUDIT",
+        "registry_source": "week3-document-refinery-extractions",
+        "matched_fields": [
+          "confidence"
+        ]
+      }
+    ],
+    "lineage_enriched_consumers": [
+      {
+        "consumer_id": "week4-cartographer",
+        "fields_consumed": [
+          "doc_id",
+          "extracted_text",
+          "confidence",
+          "extraction_pipeline_version"
+        ],
+        "breaking_if_changed": [
+          "confidence",
+          "doc_id"
+        ],
+        "registry_source": "lineage_only",
+        "matched_fields": [
+          "confidence",
+          "extracted_text"
+        ]
+      }
+    ],
+    "affected_nodes": [
+      "week5-event-publisher",
+      "contract-enforcer-runner",
+      "week4-cartographer"
+    ],
+    "affected_pipelines": [
+      "week5-event-publisher",
+      "contract-enforcer-runner",
+      "week4-cartographer"
+    ],
+    "blast_radius_method": "registry_primary+lineage_enrichment",
+    "source_lineage_snapshot": "S-002",
+    "total_downstream_nodes": 2
+  },
+  "consumer_impact": [
+    {
+      "consumer_id": "week4-cartographer",
+      "fields_consumed": [
+        "confidence",
+        "doc_id",
+        "extracted_text",
+        "extraction_pipeline_version"
+      ],
+      "relevant_changes": [
+        "extracted_text",
+        "extraction_pipeline_version",
+        "confidence"
+      ],
+      "failure_modes": [
+        {
+          "field": "confidence",
+          "type": "SILENT_CORRUPTION",
+          "description": "Confidence values are now 0\u2013100 instead of 0.0\u20131.0. Consumers applying a threshold of > 0.7 will now always pass (100 > 0.7), silently accepting all facts regardless of quality.",
+          "impact": "All downstream quality gates based on confidence threshold become no-ops."
+        }
+      ]
+    },
+    {
+      "consumer_id": "week5-event-publisher",
+      "fields_consumed": [
+        "confidence",
+        "doc_id"
+      ],
+      "relevant_changes": [
+        "confidence"
+      ],
+      "failure_modes": [
+        {
+          "field": "confidence",
+          "type": "SILENT_CORRUPTION",
+          "description": "Confidence values are now 0\u2013100 instead of 0.0\u20131.0. Consumers applying a threshold of > 0.7 will now always pass (100 > 0.7), silently accepting all facts regardless of quality.",
+          "impact": "All downstream quality gates based on confidence threshold become no-ops."
+        }
+      ]
+    }
+  ],
+  "migration_checklist": [
+    "IMMEDIATE: Halt all downstream deployments \u2014 CRITICAL breaking change detected",
+    "IMMEDIATE: Notify all 3 affected consumer team(s) of CRITICAL schema change",
+    "Freeze schema in production until migration is complete",
+    "Identify all consumers reading affected fields: ['confidence', 'extracted_text']",
+    "CRITICAL FIX: Rescale confidence values \u2014 divide all values by 100 to restore 0.0\u20131.0 range before deploying to consumers",
+    "Add contract validation gate: max(confidence) <= 1.0 to CI pipeline",
+    "Audit all consumers for references to removed fields: ['fact']",
+    "Deploy schema change behind a feature flag \u2014 enable for one consumer at a time",
+    "Run ValidationRunner against new snapshot: python contracts/runner.py --contract-id ...",
+    "Validate downstream pipeline outputs against expected distributions",
+    "Monitor for anomalies 24 h post-deployment before enabling for all consumers",
+    "Remove deprecated aliases / tombstoned fields after migration window closes"
+  ],
+  "rollback_plan": [
+    "Restore previous schema snapshot by reverting the snapshot directory to last known-good commit",
+    "Run: git revert <offending-commit> --no-edit  (do NOT force-push to main)",
+    "Re-run ValidationRunner against restored snapshot to confirm it passes all checks",
+    "Replay affected pipelines from the last valid checkpoint",
+    "Notify downstream consumers that the rollback is complete and stable",
+    "Open a post-mortem issue documenting the root cause and adding a CI guard to prevent recurrence"
+  ],
+  "exact_diff": {
+    "added": [
+      "entity_type",
+      "extracted_text",
+      "extraction_pipeline_version"
+    ],
+    "removed": [
+      "fact"
+    ],
+    "modified": [
+      {
+        "field": "confidence",
+        "category": "CONFIDENCE_SCALE_BREAK",
+        "old": {
+          "type": "number",
+          "required": true,
+          "nullable": false,
+          "minimum": 0.9,
+          "maximum": 0.9
+        },
+        "new": {
+          "type": "number",
+          "required": true,
+          "nullable": false,
+          "minimum": 0.0,
+          "maximum": 100.0
+        }
+      }
+    ]
+  },
+  "temporal_context": {
+    "old_snapshot_timestamp": "2026-04-01T12:38:50+00:00",
+    "new_snapshot_timestamp": "2026-04-02T09:00:00+00:00",
+    "change_window_seconds": 73270,
+    "change_window_human": "20h"
+  },
+  "generated_at": "2026-04-03T08:36:56.175716+00:00",
+  "analyzer_version": "3.0.0"
+}

@@ -1,0 +1,115 @@
+{
+  "report_id": "794ac6e3-6c0d-48ef-822c-b59a03033c0a",
+  "contract_id": "week3-document-refinery-extractions",
+  "snapshot_id": "week3-document-refinery-extractions@20260401T184900.0",
+  "run_timestamp": "2026-04-01T18:49:00.001000+00:00",
+  "total_checks": 9,
+  "passed": 4,
+  "failed": 1,
+  "warned": 1,
+  "errored": 3,
+  "results": [
+    {
+      "check_id": "structural.doc_id_hex64",
+      "field": "doc_id",
+      "rule": "doc_id_hex64",
+      "status": "PASS",
+      "severity": "BREAKING",
+      "message": "'doc_id': all values match pattern.",
+      "failed_count": 0,
+      "total_count": 50,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.source_hash_hex64",
+      "field": "source_hash",
+      "rule": "source_hash_hex64",
+      "status": "ERROR",
+      "severity": "BREAKING",
+      "message": "Field 'source_hash' not present in any record (missing column).",
+      "failed_count": 0,
+      "total_count": 50,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.extraction_model_pattern",
+      "field": "extraction_model",
+      "rule": "extraction_model_pattern",
+      "status": "ERROR",
+      "severity": "ERROR",
+      "message": "Field 'extraction_model' not present in any record (missing column).",
+      "failed_count": 0,
+      "total_count": 50,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.fact_not_null",
+      "field": "fact",
+      "rule": "fact_not_null",
+      "status": "PASS",
+      "severity": "BREAKING",
+      "message": "'fact': no null values (34130 checked).",
+      "failed_count": 0,
+      "total_count": 34130,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.doc_id_not_null",
+      "field": "doc_id",
+      "rule": "doc_id_not_null",
+      "status": "PASS",
+      "severity": "BREAKING",
+      "message": "'doc_id': no null values (50 checked).",
+      "failed_count": 0,
+      "total_count": 50,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.confidence_not_null",
+      "field": "confidence",
+      "rule": "confidence_not_null",
+      "status": "PASS",
+      "severity": "BREAKING",
+      "message": "'confidence': no null values (34130 checked).",
+      "failed_count": 0,
+      "total_count": 34130,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.fact_id_uuid",
+      "field": "extracted_facts.items.fact_id",
+      "rule": "fact_id_uuid",
+      "status": "ERROR",
+      "severity": "ERROR",
+      "message": "Field 'extracted_facts.items.fact_id' not present in any record (missing column).",
+      "failed_count": 0,
+      "total_count": 50,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.entities_type_enum",
+      "field": "entities",
+      "rule": "entities_type_enum",
+      "status": "SKIP",
+      "severity": "WARNING",
+      "message": "Aspirational clause \u2014 field 'entities' not yet in data schema.",
+      "failed_count": 0,
+      "total_count": 50,
+      "sample_violations": []
+    },
+    {
+      "check_id": "statistical.confidence_non_zero_variance",
+      "field": "confidence",
+      "rule": "confidence_non_zero_variance",
+      "status": "FAIL",
+      "severity": "WARNING",
+      "message": "'confidence': std=0.0, mean=0.9000 \u2014 all 34130 values are identical. Likely hard-coded default value.",
+      "failed_count": 0,
+      "total_count": 34130,
+      "sample_violations": []
+    }
+  ],
+  "data_path": "outputs/week3/extractions.jsonl",
+  "breaking_violations": 0,
+  "exit_code": 0
+}

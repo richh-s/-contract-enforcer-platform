@@ -1,0 +1,399 @@
+{
+  "contract_id": "week5-events",
+  "old_snapshot": "20260401T123909Z.yaml",
+  "new_snapshot": "20260402T090000Z.yaml",
+  "overall_compatibility": {
+    "verdict": "BREAKING",
+    "backward": false,
+    "forward": false,
+    "full": false
+  },
+  "changes": [
+    {
+      "field": "_conflict_note",
+      "category": "REMOVE_COLUMN",
+      "mapped_to_spec": "REMOVE_COLUMN",
+      "change_type": "PARTIAL",
+      "severity": "HIGH",
+      "compatibility": {
+        "backward": false,
+        "forward": true,
+        "full": false
+      },
+      "old_value": {
+        "type": "string",
+        "required": false,
+        "nullable": true
+      },
+      "new_value": {},
+      "human_diff": "'_conflict_note' removed \u2014 BREAKING for all consumers reading this field."
+    },
+    {
+      "field": "global_sequence_id",
+      "category": "ADD_NULLABLE_COLUMN",
+      "mapped_to_spec": "ADD_NULLABLE_COLUMN",
+      "change_type": "PARTIAL",
+      "severity": "LOW",
+      "compatibility": {
+        "backward": true,
+        "forward": false,
+        "full": false
+      },
+      "old_value": {},
+      "new_value": {
+        "type": "integer",
+        "required": false,
+        "nullable": true
+      },
+      "human_diff": "'global_sequence_id' added (nullable). Safe addition."
+    },
+    {
+      "field": "event_type",
+      "category": "ENUM_ADDITION",
+      "mapped_to_spec": "ENUM_ADDITION",
+      "change_type": "PARTIAL",
+      "severity": "LOW",
+      "compatibility": {
+        "backward": true,
+        "forward": false,
+        "full": false
+      },
+      "old_value": {
+        "type": "string",
+        "required": true,
+        "nullable": false,
+        "enum": [
+          "AgentContextLoaded",
+          "AgentNodeExecuted",
+          "AgentSessionStarted",
+          "ApplicationSubmitted",
+          "AuditIntegrityCheckRun",
+          "ComplianceCheckCompleted",
+          "CreditAnalysisCompleted",
+          "DecisionGenerated",
+          "FraudScreeningCompleted",
+          "HumanReviewCompleted"
+        ]
+      },
+      "new_value": {
+        "type": "string",
+        "required": true,
+        "nullable": false,
+        "enum": [
+          "AgentContextLoaded",
+          "AgentNodeExecuted",
+          "AgentSessionStarted",
+          "ApplicationSubmitted",
+          "AuditIntegrityCheckRun",
+          "ComplianceCheckCompleted",
+          "CreditAnalysisCompleted",
+          "DecisionGenerated",
+          "FraudScreeningCompleted",
+          "HumanReviewCompleted",
+          "LoanApproved",
+          "LoanRejected"
+        ]
+      },
+      "human_diff": "'event_type' enum values added: ['LoanApproved', 'LoanRejected']. Consumers must handle new values."
+    },
+    {
+      "field": "event_version",
+      "category": "RANGE_CHANGE",
+      "mapped_to_spec": "TYPE_NARROWING",
+      "change_type": "BREAKING",
+      "severity": "MEDIUM",
+      "compatibility": {
+        "backward": false,
+        "forward": false,
+        "full": false
+      },
+      "old_value": {
+        "type": "integer",
+        "required": true,
+        "nullable": false,
+        "minimum": 1.0,
+        "maximum": 2.0
+      },
+      "new_value": {
+        "type": "integer",
+        "required": true,
+        "nullable": false,
+        "minimum": 1.0,
+        "maximum": 3.0
+      },
+      "human_diff": "'event_version' range changed: [1.0, 2.0] \u2192 [1.0, 3.0]. Existing values outside the new range will fail validation."
+    },
+    {
+      "field": "schema_version",
+      "category": "ENUM_ADDITION",
+      "mapped_to_spec": "ENUM_ADDITION",
+      "change_type": "PARTIAL",
+      "severity": "LOW",
+      "compatibility": {
+        "backward": true,
+        "forward": false,
+        "full": false
+      },
+      "old_value": {
+        "type": "string",
+        "required": true,
+        "nullable": false,
+        "enum": [
+          "1.0",
+          "2.0"
+        ]
+      },
+      "new_value": {
+        "type": "string",
+        "required": true,
+        "nullable": false,
+        "enum": [
+          "1.0",
+          "2.0",
+          "3.0"
+        ]
+      },
+      "human_diff": "'schema_version' enum values added: ['3.0']. Consumers must handle new values."
+    },
+    {
+      "field": "source_system",
+      "category": "ENUM_ADDITION",
+      "mapped_to_spec": "ENUM_ADDITION",
+      "change_type": "PARTIAL",
+      "severity": "LOW",
+      "compatibility": {
+        "backward": true,
+        "forward": false,
+        "full": false
+      },
+      "old_value": {
+        "type": "string",
+        "required": true,
+        "nullable": false,
+        "enum": [
+          "agent_orchestrator",
+          "audit_service",
+          "compliance_service",
+          "credit_service",
+          "fraud_service",
+          "loan_service",
+          "test_harness"
+        ]
+      },
+      "new_value": {
+        "type": "string",
+        "required": true,
+        "nullable": false,
+        "enum": [
+          "agent_orchestrator",
+          "audit_service",
+          "compliance_service",
+          "credit_service",
+          "fraud_service",
+          "loan_service",
+          "decision_service",
+          "test_harness"
+        ]
+      },
+      "human_diff": "'source_system' enum values added: ['decision_service']. Consumers must handle new values."
+    }
+  ],
+  "migration_required": true,
+  "migration_summary": {
+    "total_changes": 6,
+    "breaking_changes": 1,
+    "partial_changes": 5,
+    "compatible_changes": 0,
+    "critical_issues": 0,
+    "high_severity": 1
+  },
+  "blast_radius": {
+    "affected_nodes": [],
+    "affected_pipelines": [],
+    "affected_consumers_count": 0,
+    "source_lineage_snapshot": "S-002",
+    "total_downstream_nodes": 2
+  },
+  "consumer_impact": [
+    {
+      "consumer_id": "week4-cartographer",
+      "fields_consumed": [
+        "actor_id",
+        "event_id",
+        "event_type",
+        "stream_id"
+      ],
+      "relevant_changes": [
+        "event_type"
+      ],
+      "failure_modes": []
+    },
+    {
+      "consumer_id": "audit-trail-service",
+      "fields_consumed": [
+        "actor_id",
+        "event_id",
+        "event_type",
+        "schema_version",
+        "source_system",
+        "timestamp"
+      ],
+      "relevant_changes": [
+        "event_type",
+        "schema_version",
+        "source_system"
+      ],
+      "failure_modes": []
+    }
+  ],
+  "migration_checklist": [
+    "Freeze schema in production until migration is complete",
+    "Identify all consumers reading affected fields: ['event_version']",
+    "Audit all consumers for references to removed fields: ['_conflict_note']",
+    "Deploy schema change behind a feature flag \u2014 enable for one consumer at a time",
+    "Run ValidationRunner against new snapshot: python contracts/runner.py --contract-id ...",
+    "Validate downstream pipeline outputs against expected distributions",
+    "Monitor for anomalies 24 h post-deployment before enabling for all consumers",
+    "Remove deprecated aliases / tombstoned fields after migration window closes"
+  ],
+  "rollback_plan": [
+    "Restore previous schema snapshot by reverting the snapshot directory to last known-good commit",
+    "Run: git revert <offending-commit> --no-edit  (do NOT force-push to main)",
+    "Re-run ValidationRunner against restored snapshot to confirm it passes all checks",
+    "Replay affected pipelines from the last valid checkpoint",
+    "Notify downstream consumers that the rollback is complete and stable",
+    "Open a post-mortem issue documenting the root cause and adding a CI guard to prevent recurrence"
+  ],
+  "exact_diff": {
+    "added": [
+      "global_sequence_id"
+    ],
+    "removed": [
+      "_conflict_note"
+    ],
+    "modified": [
+      {
+        "field": "event_type",
+        "category": "ENUM_ADDITION",
+        "old": {
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "enum": [
+            "AgentContextLoaded",
+            "AgentNodeExecuted",
+            "AgentSessionStarted",
+            "ApplicationSubmitted",
+            "AuditIntegrityCheckRun",
+            "ComplianceCheckCompleted",
+            "CreditAnalysisCompleted",
+            "DecisionGenerated",
+            "FraudScreeningCompleted",
+            "HumanReviewCompleted"
+          ]
+        },
+        "new": {
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "enum": [
+            "AgentContextLoaded",
+            "AgentNodeExecuted",
+            "AgentSessionStarted",
+            "ApplicationSubmitted",
+            "AuditIntegrityCheckRun",
+            "ComplianceCheckCompleted",
+            "CreditAnalysisCompleted",
+            "DecisionGenerated",
+            "FraudScreeningCompleted",
+            "HumanReviewCompleted",
+            "LoanApproved",
+            "LoanRejected"
+          ]
+        }
+      },
+      {
+        "field": "event_version",
+        "category": "RANGE_CHANGE",
+        "old": {
+          "type": "integer",
+          "required": true,
+          "nullable": false,
+          "minimum": 1.0,
+          "maximum": 2.0
+        },
+        "new": {
+          "type": "integer",
+          "required": true,
+          "nullable": false,
+          "minimum": 1.0,
+          "maximum": 3.0
+        }
+      },
+      {
+        "field": "schema_version",
+        "category": "ENUM_ADDITION",
+        "old": {
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "enum": [
+            "1.0",
+            "2.0"
+          ]
+        },
+        "new": {
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "enum": [
+            "1.0",
+            "2.0",
+            "3.0"
+          ]
+        }
+      },
+      {
+        "field": "source_system",
+        "category": "ENUM_ADDITION",
+        "old": {
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "enum": [
+            "agent_orchestrator",
+            "audit_service",
+            "compliance_service",
+            "credit_service",
+            "fraud_service",
+            "loan_service",
+            "test_harness"
+          ]
+        },
+        "new": {
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "enum": [
+            "agent_orchestrator",
+            "audit_service",
+            "compliance_service",
+            "credit_service",
+            "fraud_service",
+            "loan_service",
+            "decision_service",
+            "test_harness"
+          ]
+        }
+      }
+    ]
+  },
+  "temporal_context": {
+    "old_snapshot_timestamp": "2026-04-01T12:39:09+00:00",
+    "new_snapshot_timestamp": "2026-04-02T09:00:00+00:00",
+    "change_window_seconds": 73251,
+    "change_window_human": "20h"
+  },
+  "generated_at": "2026-04-02T08:25:57.195162+00:00",
+  "analyzer_version": "3.0.0"
+}

@@ -1,0 +1,67 @@
+{
+  "report_id": "b12472fe-b7d5-408f-a277-7b63b8eb8078",
+  "contract_id": "week4-lineage-snapshots",
+  "snapshot_id": "0179e5358d35ccdaab7588e4320268ced238f15363a31e0f3951333459e3af9a",
+  "run_timestamp": "2026-04-01T20:30:43.080913+00:00",
+  "total_checks": 4,
+  "passed": 2,
+  "failed": 2,
+  "warned": 0,
+  "errored": 0,
+  "results": [
+    {
+      "check_id": "week4.snapshot_id.not_null",
+      "column_name": "snapshot_id",
+      "check_type": "not_null",
+      "status": "PASS",
+      "actual_value": "null_count=0",
+      "expected": "null_count=0",
+      "severity": "CRITICAL",
+      "records_failing": 0,
+      "sample_failing": [],
+      "message": "'snapshot_id': no null values (1 values checked)."
+    },
+    {
+      "check_id": "week4.timestamp.not_null",
+      "column_name": "timestamp",
+      "check_type": "not_null",
+      "status": "PASS",
+      "actual_value": "null_count=0",
+      "expected": "null_count=0",
+      "severity": "CRITICAL",
+      "records_failing": 0,
+      "sample_failing": [],
+      "message": "'timestamp': no null values (1 values checked)."
+    },
+    {
+      "check_id": "week4.node_count.not_null",
+      "column_name": "node_count",
+      "check_type": "not_null",
+      "status": "FAIL",
+      "actual_value": "null_count=1",
+      "expected": "null_count=0",
+      "severity": "CRITICAL",
+      "records_failing": 1,
+      "sample_failing": [
+        "S-001"
+      ],
+      "message": "'node_count': 1 records with null/empty values."
+    },
+    {
+      "check_id": "week4.edge_count.not_null",
+      "column_name": "edge_count",
+      "check_type": "not_null",
+      "status": "FAIL",
+      "actual_value": "null_count=1",
+      "expected": "null_count=0",
+      "severity": "CRITICAL",
+      "records_failing": 1,
+      "sample_failing": [
+        "S-001"
+      ],
+      "message": "'edge_count': 1 records with null/empty values."
+    }
+  ],
+  "data_path": "outputs/week4/lineage_snapshots.jsonl",
+  "exit_code": 1
+}

@@ -350,40 +350,79 @@ def compute_confidence(commit_timestamp: str, lineage_depth: int) -> float:
 # BLAST RADIUS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def compute_blast_radius(contract: dict, records_failing: int) -> dict:
+def _load_registry_subscribers(contract_id: str) -> list[dict]:
     """
-    Extract blast radius from contract lineage.downstream.
+    Read contract_registry/subscriptions.yaml and return the subscriber list
+    for the given contract_id. Called BEFORE lineage traversal so the registry
+    is the primary source of consumer knowledge.
+    """
+    subs_path = _HERE / "contract_registry" / "subscriptions.yaml"
+    if not subs_path.exists():
+        return []
+    try:
+        import yaml as _yaml
+        with open(subs_path) as fh:
+            data = _yaml.safe_load(fh) or {}
+        for sub in data.get("subscriptions") or []:
+            if sub.get("contract_id") == contract_id:
+                return sub.get("consumers") or []
+    except Exception:
+        pass
+    return []
 
-    Returns:
-        {
-          "affected_nodes":     [...],
-          "affected_pipelines": [...],
-          "estimated_records":  N,
-        }
+
+def compute_blast_radius(
+    contract: dict,
+    records_failing: int,
+    bfs_traversal_depth: int = 0,
+) -> dict:
     """
+    Compute blast radius using:
+      Step 1 — ContractRegistry (primary): query subscriptions.yaml for consumers.
+      Step 2 — Lineage downstream (enrichment): add nodes not in registry.
+
+    contamination_depth is derived additively:
+      base = number of directly affected registry consumers
+      +1 per lineage hop in the BFS traversal
+    """
+    contract_id = (
+        contract.get("id", "")
+        .replace("urn:contract:", "")
+        .replace(":v1", "")
+        .replace(":v2", "")
+    )
+
+    # Step 1: Registry primary
+    registry_consumers = _load_registry_subscribers(contract_id)
+    affected_nodes:     list[str] = [c.get("consumer_id", "") for c in registry_consumers if c.get("consumer_id")]
+    affected_pipelines: list[str] = list(affected_nodes)
+
+    seen = set(affected_nodes)
+
+    # Step 2: Lineage enrichment
     lineage    = contract.get("lineage", {})
     downstream = lineage.get("downstream", [])
-
-    affected_nodes:     list[str] = []
-    affected_pipelines: list[str] = []
-
     for item in downstream:
         if isinstance(item, dict):
             node_id = item.get("id", "")
-            desc    = item.get("description", "")
-            if node_id:
+            if node_id and node_id not in seen:
                 affected_nodes.append(node_id)
                 affected_pipelines.append(node_id)
-            elif desc:
-                affected_pipelines.append(desc[:80])
-        elif isinstance(item, str):
+                seen.add(node_id)
+        elif isinstance(item, str) and item not in seen:
             affected_nodes.append(item)
             affected_pipelines.append(item)
+            seen.add(item)
+
+    # contamination_depth: direct consumer count + BFS hops
+    contamination_depth = len(affected_nodes) + bfs_traversal_depth
 
     return {
-        "affected_nodes":     affected_nodes,
-        "affected_pipelines": affected_pipelines,
-        "estimated_records":  records_failing,
+        "affected_nodes":       affected_nodes,
+        "affected_pipelines":   affected_pipelines,
+        "estimated_records":    records_failing,
+        "contamination_depth":  contamination_depth,
+        "blast_radius_method":  "registry_primary+lineage_enrichment",
     }
 
 
@@ -563,9 +602,13 @@ def attribute_report(
     blame_chain = build_blame_chain(candidates, repo_root=repo_root)
     print(f"[attributor] Blame chain: {len(blame_chain)} candidate(s)")
 
-    # ── Blast radius ──────────────────────────────────────────────────────────
+    # ── Blast radius (registry-primary + lineage enrichment + contamination_depth)
     total_records_failing = sum(r.get("records_failing", 0) for r in failures)
-    blast_radius = compute_blast_radius(contract, records_failing=total_records_failing)
+    blast_radius = compute_blast_radius(
+        contract,
+        records_failing=total_records_failing,
+        bfs_traversal_depth=len(bfs_result),
+    )
 
     # ── Build violation entries ───────────────────────────────────────────────
     detected_at = datetime.datetime.now(datetime.timezone.utc).isoformat()

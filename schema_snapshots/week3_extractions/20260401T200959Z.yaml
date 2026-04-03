@@ -1,0 +1,208 @@
+kind: DataContract
+apiVersion: v3.0.0
+id: week3-document-refinery-extractions
+info:
+  title: Week 3 Document Refinery — Extraction Records
+  version: 1.0.0
+  owner: week3-team
+  description: Document-refinery extraction output. Each record contains a doc_id
+    (SHA-256 of the source document), an extraction_model identifier, and an extracted_facts
+    array of {fact_id, fact, confidence} objects. Downstream cartographer (week4)
+    ingests doc_id and extracted_facts as node metadata. confidence must remain in
+    [0.0, 1.0].
+  generatedAt: '2026-04-01T20:09:59.431100+00:00'
+  sourceFile: outputs/week3/extractions.jsonl
+  sourceType: week3
+servers:
+  local:
+    type: local
+    path: outputs/week3/extractions.jsonl
+    format: jsonl
+terms:
+  usage: Internal inter-system data contract. Do not publish.
+  limitations: confidence must remain a float in [0.0, 1.0]. Do not change the scale
+    to 0–100 — this breaks Week4 attribution weights. doc_id is a SHA-256 hex digest,
+    not a UUID; do not reformat it.
+schema:
+  doc_id:
+    type: string
+    pattern: ^[a-f0-9]{64}$
+    required: true
+    unique: true
+    description: Primary key. SHA-256 hex digest (64 lowercase hex chars) of the source
+      document content. Stable across re-extractions of the same source. NOT a UUID
+      — do not validate as uuid format.
+  source_hash:
+    type: string
+    pattern: ^[a-f0-9]{64}$
+    required: true
+    description: SHA-256 of the source file. Changes iff the source content changes.
+  extracted_facts:
+    type: array
+    required: true
+    items:
+      confidence:
+        type: number
+        minimum: 0.0
+        maximum: 1.0
+        required: true
+        description: Extraction certainty score in [0.0, 1.0]. 1.0 = fully confident,
+          0.0 = uncertain.
+      fact_id:
+        type: string
+        format: uuid
+        unique: true
+        description: UUID v4 identifying this fact. Enables idempotent upserts.
+      fact:
+        type: string
+        required: true
+        description: Extracted text fragment from the source document.
+  extraction_model:
+    type: string
+    required: true
+    description: Model identifier. Must match pattern claude-* or gpt-*.
+    pattern: ^(claude|gpt)-
+  extracted_at:
+    type: string
+    format: date-time
+    required: false
+    nullable: true
+    description: ISO-8601 timestamp of when extraction completed. Used for freshness
+      SLA monitoring. Nullable until all pipeline versions emit this field.
+  processing_time_ms:
+    type: integer
+    required: false
+    nullable: true
+    minimum: 0
+    description: Wall-clock extraction duration in milliseconds. Used for latency
+      SLA contracts. Nullable until instrumented.
+  entities:
+    type: array
+    required: false
+    nullable: true
+    description: Named entities identified in the document (PERSON, ORG, etc.). Aspirational
+      field — not present in current data but required by canonical schema for downstream
+      entity-resolution pipeline.
+    items:
+      entity_id:
+        type: string
+        format: uuid
+      type:
+        type: string
+        enum:
+        - PERSON
+        - ORG
+        - LOCATION
+        - DATE
+        - MONEY
+        - FACT
+        - OTHER
+      text:
+        type: string
+  entity_refs:
+    type: array
+    required: false
+    nullable: true
+    description: Cross-references linking extracted_facts items to entities items
+      via {fact_id, entity_id} pairs. Aspirational field.
+    items:
+      fact_id:
+        type: string
+        format: uuid
+      entity_id:
+        type: string
+        format: uuid
+quality:
+  type: SodaChecks
+  specification:
+    checks for extractions:
+    - row_count >= 1
+    - missing_count(doc_id) = 0
+    - duplicate_count(doc_id) = 0
+    - missing_count(extracted_facts) = 0
+    - missing_count(extraction_model) = 0
+    - min(confidence) >= 0.0
+    - max(confidence) <= 1.0
+  structural:
+  - rule: doc_id_hex64
+    field: doc_id
+    type: pattern
+    pattern: ^[0-9a-f]{64}$
+    severity: BREAKING
+    description: doc_id must be a 64-character lowercase SHA-256 hex digest. Each
+      document is identified by the SHA-256 hash of its content.
+  - rule: source_hash_hex64
+    field: source_hash
+    type: pattern
+    pattern: ^[0-9a-f]{64}$
+    severity: BREAKING
+    description: source_hash is the SHA-256 digest of the raw source text before extraction.
+      Used to detect re-extraction of identical content and enable deduplication.
+  - rule: extraction_model_pattern
+    field: extraction_model
+    type: pattern
+    pattern: ^(claude|gpt)-
+    severity: ERROR
+    description: extraction_model must identify the LLM vendor prefix (claude- or
+      gpt-). Unknown prefixes indicate an undeclared model was used.
+  - rule: fact_not_null
+    field: fact
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: fact is the extracted text fragment. It must be present and non-empty
+      for every row.
+  - rule: doc_id_not_null
+    field: doc_id
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: doc_id must be present on every row. It links every fact back to
+      its source document.
+  - rule: confidence_not_null
+    field: confidence
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: confidence must be present. Missing confidence cannot be compared
+      against threshold contracts.
+  - rule: fact_id_uuid
+    field: extracted_facts.items.fact_id
+    type: pattern
+    pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+    severity: ERROR
+    description: fact_id within each extracted_facts item must be a UUID v4. Enables
+      idempotent downstream upserts.
+  - rule: entities_type_enum
+    field: entities
+    type: accepted_values
+    accepted_values:
+    - PERSON
+    - ORG
+    - LOCATION
+    - DATE
+    - MONEY
+    - FACT
+    - OTHER
+    severity: WARNING
+    status: aspirational
+    description: 'Aspirational clause: once an ''entities'' field is added to the
+      schema, entity types must use the canonical enum. Not enforced until the field
+      is present.'
+  statistical:
+  - rule: confidence_non_zero_variance
+    field: confidence
+    type: statistical
+    check: non_zero_variance
+    severity: WARNING
+    description: If all confidence values are identical the extractor is likely returning
+      a hard-coded default. std=0 is a data quality signal.
+  crossField: []
+lineage:
+  upstream: []
+  downstream: []
+llm_annotations:
+  status: skipped
+  reason: missing_api_key
+  model: null
+  annotations: []

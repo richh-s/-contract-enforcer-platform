@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Contract Enforcer — Demo</title>
+  <style>
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --surface2:  #21262d;
+      --surface3:  #30363d;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --text-muted:#8b949e;
+      --accent:    #58a6ff;
+      --accent2:   #1f6feb;
+      --green:     #3fb950;
+      --green-bg:  #0d4429;
+      --red:       #f85149;
+      --red-bg:    #3d1418;
+      --orange:    #d29922;
+      --orange-bg: #3d2a00;
+      --yellow:    #e3b341;
+      --yellow-bg: #3a2b00;
+      --purple:    #a371f7;
+      --radius:    6px;
+      --mono:      'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.5; }
+
+    /* ===== Layout ===== */
+    .app { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ===== Sidebar ===== */
+    .sidebar {
+      width: 260px; min-width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow-y: auto;
+    }
+    .sidebar-header {
+      padding: 20px 16px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-header .logo {
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--accent);
+    }
+    .sidebar-header .subtitle {
+      font-size: 11px; color: var(--text-muted); margin-top: 3px;
+    }
+    .nav-list { list-style: none; padding: 8px 0; flex: 1; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 16px; cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: background .15s, border-color .15s;
+      user-select: none;
+    }
+    .nav-item:hover { background: var(--surface2); }
+    .nav-item.active { background: var(--surface2); border-left-color: var(--accent); }
+    .nav-item .step-badge {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--surface3); font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: var(--text-muted);
+    }
+    .nav-item.active .step-badge { background: var(--accent2); color: #fff; }
+    .nav-item .step-label { font-size: 13px; flex: 1; }
+    .nav-item .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--surface3); flex-shrink: 0;
+      transition: background .2s;
+    }
+    .nav-item[data-status="running"]  .status-dot { background: var(--accent); animation: pulse 1s infinite; }
+    .nav-item[data-status="success"]  .status-dot { background: var(--green); }
+    .nav-item[data-status="error"]    .status-dot { background: var(--red); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ===== Main content ===== */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar {
+      padding: 14px 24px; border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0;
+    }
+    .topbar .step-num {
+      font-size: 22px; font-weight: 800; color: var(--accent);
+    }
+    .topbar .step-title { font-size: 18px; font-weight: 600; }
+    .topbar .step-desc { font-size: 13px; color: var(--text-muted); margin-top: 1px; }
+
+    .content { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* ===== Run button ===== */
+    .run-row { display: flex; align-items: center; gap: 12px; }
+    .btn-run {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent2); color: #fff;
+      border: none; border-radius: var(--radius);
+      padding: 8px 18px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background .15s, opacity .15s;
+    }
+    .btn-run:hover:not(:disabled) { background: var(--accent); }
+    .btn-run:disabled { opacity: .5; cursor: not-allowed; }
+    .spinner {
+      width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .6s linear infinite;
+      display: none;
+    }
+    .btn-run.running .spinner { display: block; }
+    .btn-run.running .btn-icon { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .run-status-text { font-size: 13px; color: var(--text-muted); }
+
+    /* ===== Terminal ===== */
+    .terminal-panel { background: #1e1e1e; border-radius: var(--radius); border: 1px solid #333; overflow: hidden; }
+    .terminal-header {
+      background: #2d2d2d; padding: 8px 14px; font-size: 12px;
+      color: #888; display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid #333;
+    }
+    .terminal-dots { display: flex; gap: 6px; }
+    .terminal-dots span { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red { background: #ff5f56; }
+    .dot-yellow { background: #ffbd2e; }
+    .dot-green { background: #27c93f; }
+    .terminal-body {
+      height: 280px; overflow-y: auto; padding: 12px 14px;
+      font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+      color: #d4d4d4;
+    }
+    .terminal-body::-webkit-scrollbar { width: 6px; }
+    .terminal-body::-webkit-scrollbar-track { background: #1e1e1e; }
+    .terminal-body::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+    .t-line { white-space: pre-wrap; word-break: break-all; }
+    .t-line.hi-red    { color: #f85149; }
+    .t-line.hi-orange { color: #d29922; }
+    .t-line.hi-green  { color: #3fb950; }
+    .t-line.hi-yellow { color: #e3b341; }
+    .t-line.hi-blue   { color: #58a6ff; }
+
+    /* ===== Results panel ===== */
+    .results-panel { display: none; }
+    .results-panel.visible { display: block; }
+    .results-header {
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--text-muted);
+      margin-bottom: 10px; padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ===== Shared UI components ===== */
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 12px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+    }
+    .badge-green  { background: var(--green-bg);  color: var(--green); }
+    .badge-red    { background: var(--red-bg);    color: var(--red); }
+    .badge-orange { background: var(--orange-bg); color: var(--orange); }
+    .badge-yellow { background: var(--yellow-bg); color: var(--yellow); }
+    .badge-blue   { background: #0d2b4e;          color: var(--accent); }
+    .badge-purple { background: #2d1e5e;          color: var(--purple); }
+    .badge-neutral { background: var(--surface3); color: var(--text-muted); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 8px 10px; color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); }
+    td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    .stat-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .stat-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 18px; min-width: 110px;
+    }
+    .stat-card .stat-val { font-size: 28px; font-weight: 800; line-height: 1; }
+    .stat-card .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .05em; }
+
+    .card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px;
+    }
+    .card-title { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
+    .card-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    .code-block {
+      background: #161b22; border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px;
+      font-family: var(--mono); font-size: 12px; line-height: 1.6;
+      overflow: auto; max-height: 320px; color: #cdd9e5;
+      white-space: pre;
+    }
+    .code-block .highlight-line { background: rgba(210, 153, 34, .15); display: block; }
+
+    .verdict-banner {
+      padding: 12px 16px; border-radius: var(--radius);
+      font-size: 15px; font-weight: 700;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .verdict-breaking { background: var(--red-bg); border: 1px solid var(--red); color: var(--red); }
+    .verdict-compatible { background: var(--green-bg); border: 1px solid var(--green); color: var(--green); }
+
+    .chip {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 12px; background: var(--surface3); color: var(--text-muted);
+      margin: 3px; border: 1px solid var(--border);
+    }
+    .chip-red    { background: var(--red-bg);    color: var(--red);    border-color: var(--red); }
+    .chip-orange { background: var(--orange-bg); color: var(--orange); border-color: var(--orange); }
+    .chip-blue   { background: #0d2b4e;          color: var(--accent); border-color: var(--accent); }
+    .chip-green  { background: var(--green-bg);  color: var(--green);  border-color: var(--green); }
+
+    .big-score {
+      font-size: 72px; font-weight: 900; line-height: 1;
+      text-align: center; padding: 16px 0;
+    }
+    .big-score.score-green  { color: var(--green); }
+    .big-score.score-yellow { color: var(--yellow); }
+    .big-score.score-red    { color: var(--red); }
+
+    .section { margin-bottom: 16px; }
+    .section-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--text-muted); margin-bottom: 8px;
+    }
+
+    .table-wrap { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+
+    .blame-rank {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 10px; border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .blame-rank:last-child { border-bottom: none; }
+    .blame-rank .rank-num {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--accent2); color: #fff;
+      font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .blame-rank .rank-details { flex: 1; }
+    .blame-rank .rank-path { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+    .blame-rank .rank-meta { color: var(--text-muted); font-size: 12px; margin-top: 3px; }
+    .blame-rank .rank-conf { font-size: 13px; font-weight: 700; flex-shrink: 0; }
+
+    /* scrollbar for content area */
+    .content::-webkit-scrollbar { width: 6px; }
+    .content::-webkit-scrollbar-track { background: var(--bg); }
+    .content::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+
+    /* responsive adjust */
+    @media (max-width: 900px) {
+      .sidebar { width: 200px; min-width: 200px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== Sidebar ===== -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">Data Contract Enforcer</div>
+      <div class="subtitle">6-Step Live Demo</div>
+    </div>
+    <ul class="nav-list" id="navList">
+      <!-- Populated by JS -->
+    </ul>
+  </nav>
+
+  <!-- ===== Main ===== -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div style="display:flex;align-items:baseline;gap:10px;">
+          <span class="step-num" id="topStepNum">01</span>
+          <span class="step-title" id="topStepTitle">Contract Generation</span>
+        </div>
+        <div class="step-desc" id="topStepDesc"></div>
+      </div>
+    </div>
+
+    <div class="content" id="mainContent">
+      <!-- Step panels injected here -->
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// Step definitions
+// ============================================================
+const STEPS = [
+  {
+    id: 1,
+    name: "Contract Generation",
+    desc: "Generate a typed data contract from raw JSONL extractions and lineage snapshots",
+    outputFile: "generated_contracts/week3_document_refinery_extractions.yaml",
+  },
+  {
+    id: 2,
+    name: "Violation Detection",
+    desc: "Run the enforcement runner against a violated dataset and collect FAIL results",
+    outputFile: "validation_reports/week3_violated.json",
+  },
+  {
+    id: 3,
+    name: "Blame Chain",
+    desc: "Attribute violations to source files/commits using lineage snapshots",
+    outputFile: "validation_reports/attribution_demo.jsonl",
+  },
+  {
+    id: 4,
+    name: "Schema Evolution",
+    desc: "Detect breaking vs compatible schema changes and compute blast radius",
+    outputFile: "validation_reports/schema_evolution_demo.json",
+  },
+  {
+    id: 5,
+    name: "AI Extensions",
+    desc: "Check embedding drift, prompt validation, and LLM output schema compliance",
+    outputFile: "validation_reports/ai_extensions_demo.json",
+  },
+  {
+    id: 6,
+    name: "Enforcer Report",
+    desc: "Generate consolidated data health score and top violations summary",
+    outputFile: "enforcer_report/report_data.json",
+  },
+];
+
+// State per step
+const state = {}; // { [stepId]: { status: 'idle'|'running'|'success'|'error', eventSource: null } }
+STEPS.forEach(s => { state[s.id] = { status: 'idle', eventSource: null }; });
+
+let activeStep = 1;
+
+// ============================================================
+// Build sidebar + panels
+// ============================================================
+function buildUI() {
+  const navList = document.getElementById('navList');
+  const content = document.getElementById('mainContent');
+
+  STEPS.forEach(step => {
+    // Sidebar item
+    const li = document.createElement('li');
+    li.className = 'nav-item' + (step.id === 1 ? ' active' : '');
+    li.dataset.step = step.id;
+    li.dataset.status = 'idle';
+    li.innerHTML = `
+      <span class="step-badge">${String(step.id).padStart(2,'0')}</span>
+      <span class="step-label">${step.name}</span>
+      <span class="status-dot"></span>
+    `;
+    li.addEventListener('click', () => switchStep(step.id));
+    navList.appendChild(li);
+
+    // Content panel
+    const panel = document.createElement('div');
+    panel.id = `panel-${step.id}`;
+    panel.className = 'step-panel';
+    panel.style.display = step.id === 1 ? 'flex' : 'none';
+    panel.style.flexDirection = 'column';
+    panel.style.gap = '16px';
+    panel.innerHTML = buildPanelHTML(step);
+    content.appendChild(panel);
+
+    // Wire run button
+    const btn = panel.querySelector('.btn-run');
+    btn.addEventListener('click', () => runStep(step.id));
+  });
+}
+
+function buildPanelHTML(step) {
+  return `
+    <div class="run-row">
+      <button class="btn-run" data-step="${step.id}">
+        <span class="btn-icon">&#9654;</span>
+        <span class="spinner"></span>
+        Run Step ${step.id}
+      </button>
+      <span class="run-status-text" id="status-text-${step.id}">Ready</span>
+    </div>
+
+    <div class="terminal-panel">
+      <div class="terminal-header">
+        <div class="terminal-dots">
+          <span class="dot-red"></span>
+          <span class="dot-yellow"></span>
+          <span class="dot-green"></span>
+        </div>
+        <span>Terminal — Step ${step.id}: ${step.name}</span>
+      </div>
+      <div class="terminal-body" id="term-${step.id}">
+        <span class="t-line hi-blue">$ # Ready — press Run to execute</span>
+      </div>
+    </div>
+
+    <div class="results-panel" id="results-${step.id}">
+      <div class="results-header">Results</div>
+      <div id="results-body-${step.id}"></div>
+    </div>
+  `;
+}
+
+// ============================================================
+// Navigation
+// ============================================================
+function switchStep(id) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.step-panel').forEach(el => el.style.display = 'none');
+
+  const navItem = document.querySelector(`.nav-item[data-step="${id}"]`);
+  const panel = document.getElementById(`panel-${id}`);
+  if (navItem) navItem.classList.add('active');
+  if (panel) panel.style.display = 'flex';
+
+  const step = STEPS.find(s => s.id === id);
+  document.getElementById('topStepNum').textContent = String(id).padStart(2, '0');
+  document.getElementById('topStepTitle').textContent = step.name;
+  document.getElementById('topStepDesc').textContent = step.desc;
+
+  activeStep = id;
+}
+
+// ============================================================
+// Run step via SSE
+// ============================================================
+function runStep(id) {
+  if (state[id].status === 'running') return;
+
+  const term = document.getElementById(`term-${id}`);
+  const btn = document.querySelector(`.btn-run[data-step="${id}"]`);
+  const statusText = document.getElementById(`status-text-${id}`);
+  const resultsPanel = document.getElementById(`results-${id}`);
+
+  // Reset terminal
+  term.innerHTML = '';
+  resultsPanel.classList.remove('visible');
+
+  setStepStatus(id, 'running');
+  btn.classList.add('running');
+  btn.disabled = true;
+  statusText.textContent = 'Running...';
+
+  const es = new EventSource(`/run/${id}`);
+  state[id].eventSource = es;
+
+  es.onmessage = (evt) => {
+    const raw = evt.data;
+
+    if (raw.startsWith('__DONE__:')) {
+      const exitCode = parseInt(raw.split(':')[1], 10);
+      es.close();
+      state[id].eventSource = null;
+      btn.classList.remove('running');
+      btn.disabled = false;
+
+      if (exitCode === 0) {
+        setStepStatus(id, 'success');
+        statusText.textContent = 'Completed successfully';
+        appendLine(term, `\n[Exit 0] Command succeeded.`, 'hi-green');
+        loadResults(id);
+      } else {
+        setStepStatus(id, 'error');
+        statusText.textContent = `Failed (exit ${exitCode})`;
+        appendLine(term, `\n[Exit ${exitCode}] Command failed.`, 'hi-red');
+      }
+      return;
+    }
+
+    appendLine(term, raw, colorClass(raw));
+  };
+
+  es.onerror = () => {
+    es.close();
+    state[id].eventSource = null;
+    btn.classList.remove('running');
+    btn.disabled = false;
+    setStepStatus(id, 'error');
+    statusText.textContent = 'Connection error';
+    appendLine(term, '[Connection error — is the server running?]', 'hi-red');
+  };
+}
+
+function appendLine(term, text, cls) {
+  const div = document.createElement('div');
+  div.className = 't-line' + (cls ? ' ' + cls : '');
+  div.textContent = text;
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+}
+
+function colorClass(line) {
+  const u = line.toUpperCase();
+  if (u.includes('CRITICAL') || u.includes('ERROR') || u.includes('FAIL')) {
+    if (u.includes('FAIL') && !u.includes('CRITICAL') && !u.includes('ERROR')) return 'hi-orange';
+    return 'hi-red';
+  }
+  if (u.includes('WARN')) return 'hi-yellow';
+  if (u.includes('PASS') || u.includes('SUCCESS') || u.includes('OK')) return 'hi-green';
+  return '';
+}
+
+function setStepStatus(id, status) {
+  state[id].status = status;
+  const navItem = document.querySelector(`.nav-item[data-step="${id}"]`);
+  if (navItem) navItem.dataset.status = status;
+}
+
+// ============================================================
+// Load & render results
+// ============================================================
+async function loadResults(id) {
+  try {
+    const res = await fetch(`/result/${id}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    renderResults(id, data);
+  } catch (err) {
+    const body = document.getElementById(`results-body-${id}`);
+    body.innerHTML = `<div style="color:var(--red);padding:10px;">Could not load results: ${escHtml(String(err))}</div>`;
+    document.getElementById(`results-${id}`).classList.add('visible');
+  }
+}
+
+function renderResults(id, data) {
+  const panel = document.getElementById(`results-${id}`);
+  const body = document.getElementById(`results-body-${id}`);
+  panel.classList.add('visible');
+
+  const renderers = { 1: renderStep1, 2: renderStep2, 3: renderStep3, 4: renderStep4, 5: renderStep5, 6: renderStep6 };
+  if (renderers[id]) {
+    body.innerHTML = renderers[id](data);
+  } else {
+    body.innerHTML = `<pre class="code-block">${escHtml(JSON.stringify(data, null, 2))}</pre>`;
+  }
+}
+
+// ============================================================
+// Step 1 — Contract Generation
+// ============================================================
+function renderStep1(data) {
+  const raw = data.raw || '';
+  const parsed = data.parsed || {};
+
+  // Count clauses from quality.structural + statistical + crossField
+  const quality = parsed.quality || {};
+  const structural = quality.structural || [];
+  const statistical = quality.statistical || [];
+  const crossField = quality.crossField || [];
+  const totalClauses = structural.length + statistical.length + crossField.length;
+
+  // Build highlighted YAML (highlight confidence lines)
+  const lines = raw.split('\n');
+  const yamlHtml = lines.map(line => {
+    const esc = escHtml(line);
+    if (line.includes('confidence') || line.includes('minimum: 0') || line.includes('maximum: 1')) {
+      return `<span class="highlight-line">${esc}</span>`;
+    }
+    return esc;
+  }).join('\n');
+
+  // Quality rules table
+  const allRules = [...structural, ...statistical, ...crossField];
+  const rulesRows = allRules.map(r => {
+    const sev = (r.severity || '').toUpperCase();
+    const sevBadge = severityBadge(sev);
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:12px;">${escHtml(r.rule || '')}</td>
+      <td style="font-family:var(--mono);font-size:12px;">${escHtml(r.field || '')}</td>
+      <td>${escHtml(r.type || '')}</td>
+      <td>${sevBadge}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="section">
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--accent)">${totalClauses}</div>
+          <div class="stat-label">Total Clauses</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--green)">${structural.length}</div>
+          <div class="stat-label">Structural</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--yellow)">${statistical.length}</div>
+          <div class="stat-label">Statistical</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--text-muted)">${crossField.length}</div>
+          <div class="stat-label">Cross-Field</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Contract YAML — confidence clause highlighted</div>
+      <div class="code-block" id="yaml-block">${yamlHtml}</div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Quality Rules</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Rule</th><th>Field</th><th>Type</th><th>Severity</th></tr></thead>
+          <tbody>${rulesRows || '<tr><td colspan="4" style="color:var(--text-muted);text-align:center">No rules found</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// Step 2 — Violation Detection
+// ============================================================
+function renderStep2(data) {
+  const total   = data.total_checks || 0;
+  const passed  = data.passed || 0;
+  const failed  = data.failed || 0;
+  const warned  = data.warned || 0;
+  const errored = data.errored || 0;
+  const results = data.results || [];
+
+  const failRows = results.filter(r => r.status === 'FAIL' || r.status === 'ERROR');
+  const rows = failRows.map(r => {
+    const sev = (r.severity || '').toUpperCase();
+    const isConf = (r.check_id || '').includes('confidence') || (r.column_name || '').includes('confidence');
+    const style = isConf ? 'background:rgba(210,153,34,.08);' : '';
+    return `<tr style="${style}">
+      <td style="font-family:var(--mono);font-size:12px;">${escHtml(r.check_id || '')}${isConf ? ' <span class="badge badge-yellow" style="font-size:10px">KEY</span>' : ''}</td>
+      <td>${severityBadge(sev)}</td>
+      <td>${r.status === 'ERROR' ? '<span class="badge badge-neutral">ERROR</span>' : '<span class="badge badge-red">FAIL</span>'}</td>
+      <td style="text-align:right;">${r.records_failing ?? '—'}</td>
+      <td style="color:var(--text-muted);font-size:12px;">${escHtml(r.message || '')}</td>
+    </tr>`;
+  }).join('');
+
+  const passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
+
+  return `
+    <div class="section">
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-val">${total}</div>
+          <div class="stat-label">Total Checks</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--green)">${passed}</div>
+          <div class="stat-label">Passed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--red)">${failed}</div>
+          <div class="stat-label">Failed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--yellow)">${warned}</div>
+          <div class="stat-label">Warned</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--orange)">${errored}</div>
+          <div class="stat-label">Errored</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:${passRate >= 80 ? 'var(--green)' : passRate >= 60 ? 'var(--yellow)' : 'var(--red)'}">${passRate}%</div>
+          <div class="stat-label">Pass Rate</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">FAIL / ERROR Results ${failRows.length > 0 ? `<span class="badge badge-red">${failRows.length}</span>` : ''}</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Check ID</th><th>Severity</th><th>Status</th><th style="text-align:right">Records Failing</th><th>Message</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="5" style="color:var(--green);text-align:center;padding:16px">All checks passed!</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// Step 3 — Blame Chain
+// ============================================================
+function renderStep3(data) {
+  const records = (data.records || []).filter(r => r && typeof r === 'object');
+  if (!records.length) {
+    return `<div style="color:var(--text-muted);padding:20px;text-align:center">No attribution records found.</div>`;
+  }
+
+  const first = records[0];
+  const blameChain = first.blame_chain || first.attribution?.blame_chain || [];
+  const blastNodes = first.blast_radius?.affected_nodes || first.blast_radius || [];
+  const checkId = first.check_id || first.violation_id || 'Unknown check';
+  const fieldName = first.field || first.column_name || '';
+
+  const chainHtml = blameChain.length
+    ? blameChain.map((entry, i) => {
+        const conf = entry.confidence_score != null
+          ? Math.round(entry.confidence_score * 100) + '%'
+          : (entry.confidence != null ? Math.round(entry.confidence * 100) + '%' : '—');
+        const hash = (entry.commit_hash || entry.commit || '').substring(0, 8);
+        const author = entry.author || entry.committer || '—';
+        const fpath = entry.file_path || entry.path || entry.file || '—';
+        return `
+          <div class="blame-rank">
+            <div class="rank-num">${i + 1}</div>
+            <div class="rank-details">
+              <div class="rank-path">${escHtml(fpath)}</div>
+              <div class="rank-meta">commit: <code style="color:var(--yellow)">${escHtml(hash)}</code> &nbsp;|&nbsp; author: ${escHtml(author)}</div>
+            </div>
+            <div class="rank-conf" style="color:${i === 0 ? 'var(--red)' : 'var(--text)'}">${conf}</div>
+          </div>`;
+      }).join('')
+    : `<div style="color:var(--text-muted);padding:12px">No blame chain data available in this record.</div>`;
+
+  const blastHtml = (Array.isArray(blastNodes) ? blastNodes : [])
+    .map(n => {
+      const name = typeof n === 'string' ? n : (n.id || n.name || JSON.stringify(n));
+      return `<span class="chip chip-orange">${escHtml(name)}</span>`;
+    }).join('') || `<span class="chip">No affected nodes listed</span>`;
+
+  return `
+    <div class="section">
+      <div class="section-label">Record 1 of ${records.length} — Violation: <code style="color:var(--accent)">${escHtml(checkId)}</code>${fieldName ? ` (${escHtml(fieldName)})` : ''}</div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Blame Chain (ranked by confidence)</div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        ${chainHtml}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Blast Radius — Affected Nodes</div>
+      <div class="card">
+        ${blastHtml}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// Step 4 — Schema Evolution
+// ============================================================
+function renderStep4(data) {
+  const verdict = data.overall_compatibility?.verdict || 'UNKNOWN';
+  const isBreaking = verdict === 'BREAKING';
+  const changes = data.changes || [];
+  const blast = data.blast_radius || {};
+  const migration = data.migration_summary || {};
+  const contractId = data.contract_id || '—';
+
+  const verdictClass = isBreaking ? 'verdict-breaking' : 'verdict-compatible';
+  const verdictIcon = isBreaking ? '✕' : '✓';
+
+  const changeRows = changes.map(c => {
+    const ct = (c.change_type || '').toUpperCase();
+    let ctBadge;
+    if (ct === 'BREAKING') ctBadge = `<span class="badge badge-red">BREAKING</span>`;
+    else if (ct === 'PARTIAL') ctBadge = `<span class="badge badge-yellow">PARTIAL</span>`;
+    else ctBadge = `<span class="badge badge-green">COMPATIBLE</span>`;
+
+    const catBadge = `<span class="badge badge-neutral" style="font-size:10px">${escHtml(c.category || c.mapped_to_spec || '')}</span>`;
+
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:12px;">${escHtml(c.field || '')}</td>
+      <td>${catBadge}</td>
+      <td>${ctBadge}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${escHtml(c.human_diff || '')}</td>
+    </tr>`;
+  }).join('');
+
+  const affectedCount = blast.affected_consumers_count ?? blast.total_downstream_nodes ?? '—';
+  const affectedNodes = [
+    ...(blast.affected_nodes || []),
+    ...(blast.registry_consumers || []),
+    ...(blast.lineage_enriched_consumers || []),
+  ];
+  const nodesHtml = affectedNodes.length
+    ? affectedNodes.map(n => {
+        const label = typeof n === 'string' ? n : (n.id || n.name || JSON.stringify(n));
+        return `<span class="chip chip-orange">${escHtml(label)}</span>`;
+      }).join('')
+    : `<span class="chip">No consumers listed</span>`;
+
+  const migSteps = data.migration_checklist?.length || 0;
+
+  return `
+    <div class="section">
+      <div class="verdict-banner ${verdictClass}">
+        <span style="font-size:18px">${verdictIcon}</span>
+        Schema compatibility verdict for <strong>${escHtml(contractId)}</strong>: ${verdict}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-val">${changes.length}</div>
+          <div class="stat-label">Total Changes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--red)">${migration.breaking_changes ?? 0}</div>
+          <div class="stat-label">Breaking</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--yellow)">${migration.partial_changes ?? 0}</div>
+          <div class="stat-label">Partial</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--green)">${migration.compatible_changes ?? 0}</div>
+          <div class="stat-label">Compatible</div>
+        </div>
+        ${migSteps > 0 ? `<div class="stat-card">
+          <div class="stat-val" style="color:var(--accent)">${migSteps}</div>
+          <div class="stat-label">Migration Steps</div>
+        </div>` : ''}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Changes</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Category</th><th>Change Type</th><th>Description</th></tr></thead>
+          <tbody>${changeRows || '<tr><td colspan="4" style="color:var(--text-muted);text-align:center">No changes detected</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Blast Radius — ${affectedCount} affected consumer(s)</div>
+      <div class="card">
+        ${nodesHtml}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// Step 5 — AI Extensions
+// ============================================================
+function renderStep5(data) {
+  const ed = data.embedding_drift || {};
+  const pv = data.prompt_validation || {};
+  const lo = data.llm_output_validation || {};
+
+  function statusBadge(s) {
+    const u = (s || '').toUpperCase();
+    if (u === 'PASS') return `<span class="badge badge-green">PASS</span>`;
+    if (u === 'FAIL') return `<span class="badge badge-red">FAIL</span>`;
+    if (u === 'WARN') return `<span class="badge badge-yellow">WARN</span>`;
+    return `<span class="badge badge-neutral">${escHtml(s || '—')}</span>`;
+  }
+
+  const driftScore = ed.drift_score ?? '—';
+  const driftPct = typeof driftScore === 'number' ? (driftScore * 100).toFixed(2) + '%' : driftScore;
+  const method = ed.method || ed.embedding_backend || '—';
+  const threshold = ed.threshold ?? '—';
+
+  const quarantined = pv.quarantined_records ?? 0;
+  const validCount = pv.valid_records ?? 0;
+  const pvTotal = pv.total_records ?? 0;
+
+  const loTotal = lo.total_outputs ?? '—';
+  const loViolations = lo.schema_violations ?? 0;
+  const loRate = lo.violation_rate != null ? (lo.violation_rate * 100).toFixed(1) + '%' : '—';
+  const loTrend = lo.trend || '—';
+
+  return `
+    <div class="card-row">
+      <!-- Embedding Drift -->
+      <div class="card" style="flex:1;min-width:200px;">
+        <div class="card-title">Embedding Drift</div>
+        <div style="margin-bottom:8px">${statusBadge(ed.status)}</div>
+        <div style="font-size:28px;font-weight:800;color:${ed.status==='PASS'?'var(--green)':'var(--red)'}">${driftPct}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">drift score</div>
+        <div style="margin-top:12px;font-size:13px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Method</span>
+            <code style="font-size:12px;color:var(--accent)">${escHtml(method)}</code>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Threshold</span>
+            <span>${threshold}</span>
+          </div>
+          ${ed.cosine_similarity != null ? `<div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Cosine Similarity</span>
+            <span>${ed.cosine_similarity.toFixed(4)}</span>
+          </div>` : ''}
+          ${ed.texts_sampled != null ? `<div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Texts Sampled</span>
+            <span>${ed.texts_sampled}</span>
+          </div>` : ''}
+        </div>
+      </div>
+
+      <!-- Prompt Validation -->
+      <div class="card" style="flex:1;min-width:200px;">
+        <div class="card-title">Prompt Validation</div>
+        <div style="margin-bottom:8px">${statusBadge(pv.status)}</div>
+        <div style="font-size:28px;font-weight:800;color:var(--green)">${validCount}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">valid records</div>
+        <div style="margin-top:12px;font-size:13px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Total Records</span>
+            <span>${pvTotal}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Quarantined</span>
+            <span style="color:${quarantined>0?'var(--red)':'var(--green)'}">${quarantined}</span>
+          </div>
+          ${pv.schema_used ? `<div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Schema</span>
+            <code style="font-size:11px;color:var(--accent)">${escHtml(pv.schema_used)}</code>
+          </div>` : ''}
+          ${pv.quarantine_rate != null ? `<div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Quarantine Rate</span>
+            <span>${(pv.quarantine_rate*100).toFixed(1)}%</span>
+          </div>` : ''}
+        </div>
+      </div>
+
+      <!-- LLM Output Schema -->
+      <div class="card" style="flex:1;min-width:200px;">
+        <div class="card-title">LLM Output Schema</div>
+        <div style="margin-bottom:8px">${statusBadge(lo.status)}</div>
+        <div style="font-size:28px;font-weight:800;color:${loViolations===0?'var(--green)':'var(--red)'}">${loTotal}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">total outputs</div>
+        <div style="margin-top:12px;font-size:13px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Schema Violations</span>
+            <span style="color:${loViolations>0?'var(--red)':'var(--green)'}">${loViolations}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Violation Rate</span>
+            <span>${loRate}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Trend</span>
+            <span class="badge ${loTrend==='stable'?'badge-green':loTrend==='improving'?'badge-blue':'badge-yellow'}">${escHtml(loTrend)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// Step 6 — Enforcer Report
+// ============================================================
+function renderStep6(data) {
+  const score = data.data_health_score ?? 0;
+  const scoreClass = score >= 80 ? 'score-green' : score >= 60 ? 'score-yellow' : 'score-red';
+  const breakdown = data.health_score_breakdown || {};
+  const narrative = data.health_narrative || '';
+  const violations = data.top_violations || [];
+
+  const breakdownHtml = Object.keys(breakdown).length ? `
+    <div class="section">
+      <div class="section-label">Health Score Breakdown</div>
+      <div class="stat-row">
+        ${breakdown.total_checks != null ? `<div class="stat-card"><div class="stat-val">${breakdown.total_checks}</div><div class="stat-label">Total Checks</div></div>` : ''}
+        ${breakdown.passed != null ? `<div class="stat-card"><div class="stat-val" style="color:var(--green)">${breakdown.passed}</div><div class="stat-label">Passed</div></div>` : ''}
+        ${breakdown.failed != null ? `<div class="stat-card"><div class="stat-val" style="color:var(--red)">${breakdown.failed}</div><div class="stat-label">Failed</div></div>` : ''}
+        ${breakdown.errored != null ? `<div class="stat-card"><div class="stat-val" style="color:var(--orange)">${breakdown.errored}</div><div class="stat-label">Errored</div></div>` : ''}
+        ${breakdown.contracts_covered != null ? `<div class="stat-card"><div class="stat-val" style="color:var(--accent)">${breakdown.contracts_covered}</div><div class="stat-label">Contracts</div></div>` : ''}
+        ${breakdown.critical_failures != null ? `<div class="stat-card"><div class="stat-val" style="color:var(--red)">${breakdown.critical_failures}</div><div class="stat-label">Critical Failures</div></div>` : ''}
+        ${breakdown.penalty_applied != null ? `<div class="stat-card"><div class="stat-val" style="color:var(--red)">-${breakdown.penalty_applied}</div><div class="stat-label">Penalty</div></div>` : ''}
+      </div>
+    </div>
+  ` : '';
+
+  const violCardsHtml = violations.slice(0, 3).map(v => {
+    const sev = (v.severity || '').toUpperCase();
+    return `
+      <div class="card" style="flex:1;min-width:220px;border-left:3px solid ${sev==='CRITICAL'?'var(--red)':sev==='HIGH'?'var(--orange)':'var(--yellow)'};">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          ${severityBadge(sev)}
+          <code style="font-size:12px;color:var(--accent)">${escHtml(v.check_id || v.field || '—')}</code>
+        </div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:6px">${escHtml(v.description || v.message || '')}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${escHtml(v.impact || '')}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="section" style="text-align:center">
+      <div class="section-label">Overall Data Health Score</div>
+      <div class="big-score ${scoreClass}">${score}</div>
+      <div style="color:var(--text-muted);font-size:13px;margin-top:4px">out of 100</div>
+    </div>
+
+    ${narrative ? `<div class="section">
+      <div class="card" style="font-size:13px;line-height:1.6;color:var(--text-muted)">${escHtml(narrative)}</div>
+    </div>` : ''}
+
+    ${breakdownHtml}
+
+    ${violCardsHtml ? `<div class="section">
+      <div class="section-label">Top Violations</div>
+      <div class="card-row">${violCardsHtml}</div>
+    </div>` : ''}
+  `;
+}
+
+// ============================================================
+// Helpers
+// ============================================================
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function severityBadge(sev) {
+  const s = (sev || '').toUpperCase();
+  if (s === 'CRITICAL' || s === 'BREAKING') return `<span class="badge badge-red">${escHtml(sev)}</span>`;
+  if (s === 'HIGH' || s === 'ERROR')        return `<span class="badge badge-orange">${escHtml(sev)}</span>`;
+  if (s === 'MEDIUM' || s === 'WARNING' || s === 'WARN') return `<span class="badge badge-yellow">${escHtml(sev)}</span>`;
+  if (s === 'LOW' || s === 'INFO')          return `<span class="badge badge-blue">${escHtml(sev)}</span>`;
+  return `<span class="badge badge-neutral">${escHtml(sev || '—')}</span>`;
+}
+
+// ============================================================
+// Scroll YAML to confidence clause on render
+// ============================================================
+function scrollToConfidence() {
+  const block = document.getElementById('yaml-block');
+  if (!block) return;
+  const highlighted = block.querySelector('.highlight-line');
+  if (highlighted) {
+    highlighted.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+}
+
+// ============================================================
+// Init
+// ============================================================
+buildUI();
+switchStep(1);
+
+// After switching to step 1 and rendering, if results are already loaded scroll yaml
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.btn-run') && activeStep === 1) {
+    // After results load, scroll to highlight — handled via MutationObserver
+    const observer = new MutationObserver(() => {
+      scrollToConfidence();
+      observer.disconnect();
+    });
+    const resultsBody = document.getElementById('results-body-1');
+    if (resultsBody) observer.observe(resultsBody, { childList: true, subtree: true });
+  }
+});
+</script>
+</body>
+</html>

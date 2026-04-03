@@ -1,0 +1,244 @@
+kind: DataContract
+apiVersion: v3.0.0
+id: urn:contract:week5-events:v2
+info:
+  title: Week5 Events Data Contract
+  version: 2.0.0
+  owner: contract-enforcer-platform
+  generatedAt: '2026-04-02T09:00:00.000000+00:00'
+  sourceFile: outputs/week5/events.jsonl
+  sourceType: week5
+servers:
+  local:
+    type: local
+    path: outputs/week5/events.jsonl
+    format: jsonl
+terms:
+  usage: Internal inter-system data contract. Do not publish externally.
+  limitations: confidence must remain in 0.0–1.0 float range. Schema evolution must
+    follow backward-compatibility rules. Breaking changes require a version bump.
+models:
+  week5_events:
+    description: Profile of outputs/week5/events.jsonl (week5 pipeline output) — v2 schema.
+    fields:
+      event_id:
+        type: string
+        required: true
+        nullable: false
+        description: Inferred from profile. null_fraction=0.000, n_unique=62
+        format: uuid
+      stream_id:
+        type: string
+        required: true
+        nullable: false
+        description: Inferred from profile. null_fraction=0.000, n_unique=43
+      stream_position:
+        type: integer
+        required: true
+        nullable: false
+        description: Inferred from profile. null_fraction=0.000, n_unique=6
+        minimum: 1.0
+        maximum: 6.0
+      global_position:
+        type: integer
+        required: true
+        nullable: false
+        description: Inferred from profile. null_fraction=0.000, n_unique=62
+        minimum: 1461.0
+        maximum: 1522.0
+      event_type:
+        type: string
+        required: true
+        nullable: false
+        description: Inferred from profile. null_fraction=0.000, n_unique=12
+        enum: &id001
+        - AgentContextLoaded
+        - AgentNodeExecuted
+        - AgentSessionStarted
+        - ApplicationSubmitted
+        - AuditIntegrityCheckRun
+        - ComplianceCheckCompleted
+        - CreditAnalysisCompleted
+        - DecisionGenerated
+        - FraudScreeningCompleted
+        - HumanReviewCompleted
+        - LoanApproved
+        - LoanRejected
+      event_version:
+        type: integer
+        required: true
+        nullable: false
+        description: Inferred from profile. null_fraction=0.000, n_unique=3
+        minimum: 1.0
+        maximum: 3.0
+      timestamp:
+        type: string
+        required: true
+        nullable: false
+        description: Inferred from profile. null_fraction=0.000, n_unique=62
+        format: date-time
+      source_system:
+        type: string
+        required: true
+        nullable: false
+        description: Inferred from profile. null_fraction=0.000, n_unique=8
+        enum: &id002
+        - agent_orchestrator
+        - audit_service
+        - compliance_service
+        - credit_service
+        - fraud_service
+        - loan_service
+        - decision_service
+        - test_harness
+      actor_id:
+        type: string
+        required: true
+        nullable: false
+        description: Inferred from profile. null_fraction=0.000, n_unique=29
+      schema_version:
+        type: string
+        required: true
+        nullable: false
+        description: Inferred from profile. null_fraction=0.000, n_unique=3
+        enum: &id003
+        - '1.0'
+        - '2.0'
+        - '3.0'
+      metadata.correlation_id:
+        type: string
+        required: false
+        nullable: true
+        description: Inferred from profile. null_fraction=0.403, n_unique=9
+        enum: &id004
+        - APP-CONC-6AE5E8
+        - APP-MCP-809d31
+        - APP-MCP-B7D179
+        - APP-MCP-C95DF4
+        - APP-MCP-EC3408
+        - corr-APP-MCP-809d31
+        - corr-APP-MCP-B7D179
+        - corr-APP-MCP-C95DF4
+        - corr-APP-MCP-EC3408
+      metadata.causation_id:
+        type: string
+        required: false
+        nullable: true
+        description: Inferred from profile. null_fraction=0.742, n_unique=4
+        format: uuid
+        enum: &id005
+        - 01907c65-1695-455a-a4ea-ce65efaa2aef
+        - 3423e909-9849-4f2b-8c05-3500b4a7b210
+        - 8ecd1769-1825-4a80-92b9-9592bad190e5
+        - ba512d6b-d5ce-491a-941e-4542ab1e89d7
+      global_sequence_id:
+        type: integer
+        required: false
+        nullable: true
+        description: >
+          New field in v2. Global monotonic sequence number across all streams.
+          Enables total ordering of events across stream partitions.
+          Nullable until all producers populate it.
+quality:
+  type: SodaChecks
+  specification:
+    checks for week5_events:
+    - row_count > 0: null
+    - missing_count(event_id) = 0: null
+    - duplicate_count(event_id) = 0: null
+    - missing_count(event_type) = 0: null
+    - missing_count(timestamp) = 0: null
+    - missing_count(source_system) = 0: null
+    - missing_count(schema_version) = 0: null
+    - row_count >= 1: null
+  structural:
+  - rule: event_id_uuid
+    field: event_id
+    type: pattern
+    pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+    severity: BREAKING
+    description: event_id must be a valid UUID v4.
+  - rule: event_type_enum
+    field: event_type
+    type: accepted_values
+    accepted_values: *id001
+    severity: ERROR
+    description: event_type must be a known, declared event type.
+  - rule: timestamp_not_null
+    field: timestamp
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: Every event must have a timestamp.
+  - rule: source_system_not_null
+    field: source_system
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: source_system identifies which service emitted the event.
+  - rule: schema_version_not_null
+    field: schema_version
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: schema_version must be present so consumers can route to the correct deserializer.
+  statistical: []
+  crossField:
+  - rule: stream_position_monotonic
+    field: stream_position
+    type: cross_field
+    check: monotonic_per_group
+    group_by: stream_id
+    severity: ERROR
+    description: stream_position must increment by 1 within each stream_id.
+  - rule: timestamp_gte_payload_at
+    field: timestamp
+    type: cross_field
+    check: gte_payload_occurred_at
+    severity: WARNING
+    description: timestamp must be >= any payload.*_at field.
+lineage:
+  snapshot_id: S-002
+  timestamp: '2026-04-02T09:00:00.000000'
+  node_count: 18
+  edge_count: 13
+  node_types:
+  - data
+  - transformation
+  edge_relations:
+  - SQL_PRODUCT
+  source_file: outputs/week4/lineage_snapshots.jsonl
+  upstream: []
+  downstream:
+  - id: week4-cartographer
+    description: Cartographer ingests event metadata as graph nodes
+    fields_consumed:
+    - event_id
+    - event_type
+    - stream_id
+    - actor_id
+    breaking_if_changed:
+    - event_id
+    - event_type
+  - id: audit-trail-service
+    description: Audit service consumes all events for compliance logging
+    fields_consumed:
+    - event_id
+    - event_type
+    - timestamp
+    - actor_id
+    - source_system
+    - schema_version
+    breaking_if_changed:
+    - event_id
+    - event_type
+    - schema_version
+  git_commit: b2c3d4e5f6a7
+  git_author: richh-s
+  git_committed_at: '2026-04-02T09:00:00+03:00'
+  git_message: v2 schema — add LoanApproved/LoanRejected events, decision_service source, schema_version 3.0
+llm_annotations:
+  status: skipped
+  reason: missing_api_key
+  model: null
+  annotations: []
