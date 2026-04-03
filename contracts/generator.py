@@ -99,6 +99,83 @@ from contracts._lineage  import load_latest_lineage, enrich_with_git  # noqa: E4
 from contracts._llm      import annotate_with_llm                    # noqa: E402
 from contracts._dbt      import generate_dbt_yaml                    # noqa: E402
 
+_BASELINES_PATH = _HERE / "schema_snapshots" / "baselines.json"
+
+
+# ── Baseline persistence (generator writes mean+stddev per numeric column) ─────
+
+def _write_baseline(contract_id: str, profile: dict) -> None:
+    """
+    Write mean and stddev per numeric column to schema_snapshots/baselines.json.
+    Called by the generator so the runner has a baseline from the first contract run.
+    Only creates a new entry; never overwrites an existing one for the same contract_id.
+    """
+    _BASELINES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    existing: dict = {}
+    if _BASELINES_PATH.exists():
+        try:
+            existing = json.loads(_BASELINES_PATH.read_text())
+        except (json.JSONDecodeError, OSError):
+            existing = {}
+
+    if contract_id in existing:
+        return  # baseline already set — don't overwrite
+
+    field_stats: dict = {}
+    for col, stats in profile.items():
+        mean = stats.get("mean")
+        std  = stats.get("std")
+        if mean is not None and std is not None:
+            field_stats[col] = {
+                "mean": mean,
+                "std":  std,
+                "min":  stats.get("min"),
+                "max":  stats.get("max"),
+                "null_fraction": stats.get("null_fraction", 0.0),
+            }
+
+    if field_stats:
+        existing[contract_id] = {
+            "field_stats":  field_stats,
+            "created_at":   datetime.now(timezone.utc).isoformat(),
+            "contract_id":  contract_id,
+            "source":       "generator",
+        }
+        _BASELINES_PATH.write_text(json.dumps(existing, indent=2))
+
+
+# ── Suspicious distribution detection ─────────────────────────────────────────
+
+def _flag_suspicious_distributions(clauses: list, profile: dict) -> list:
+    """
+    For every numeric clause, check if the profiled mean is suspiciously extreme
+    (mean > 0.99 or mean < 0.01). If so, annotate the clause with a warning so
+    reviewers know the distribution may be degenerate or a hard-coded default.
+    Returns the updated clauses list.
+    """
+    for clause in clauses:
+        field = clause.get("field", "")
+        # Find the matching profile entry (strip array notation for lookup)
+        lookup = field.replace("[*]", "").replace("extracted_facts.", "")
+        col_stats = profile.get(lookup) or profile.get(field)
+        if col_stats is None:
+            continue
+        mean = col_stats.get("mean")
+        if mean is None:
+            continue
+        try:
+            mean_f = float(mean)
+        except (TypeError, ValueError):
+            continue
+        if mean_f > 0.99 or mean_f < 0.01:
+            clause.setdefault("warnings", []).append(
+                f"SUSPICIOUS DISTRIBUTION: mean={mean_f:.4f} is near boundary "
+                f"({'> 0.99' if mean_f > 0.99 else '< 0.01'}). "
+                "This may indicate a hard-coded default or degenerate data. "
+                "Verify the distribution before enforcing this clause in production."
+            )
+    return clauses
+
 
 # ── Source detection ───────────────────────────────────────────────────────────
 
@@ -778,6 +855,16 @@ def generate_contract(
     # E — infer + merge clauses
     clauses = infer_clauses_from_profile(prof, source_type)
     print(f"[generator] {len(clauses)} clauses (canonical + inferred)")
+
+    # E1 — flag suspicious distributions (mean > 0.99 or mean < 0.01)
+    clauses = _flag_suspicious_distributions(clauses, prof)
+    suspicious = [c for c in clauses if c.get("warnings")]
+    if suspicious:
+        print(f"[generator] ⚠  {len(suspicious)} clause(s) flagged with suspicious distributions")
+
+    # E2 — write baseline (mean + stddev per numeric column) for runner
+    _write_baseline(contract_id, prof)
+    print(f"[generator] Baseline written : {_BASELINES_PATH}")
 
     # F — lineage
     lineage_info: dict | None = None

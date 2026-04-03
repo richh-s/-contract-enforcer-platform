@@ -1,0 +1,109 @@
+kind: DataContract
+apiVersion: v3.0.0
+id: week4-lineage-snapshots
+info:
+  title: Week 4 Lineage Snapshots
+  version: 1.0.0
+  owner: week4-team
+  description: Lineage graph snapshots produced by the Week 4 cartographer pipeline.
+    Each snapshot captures the full node/edge graph at a point in time, keyed by snapshot_id
+    and ISO timestamp. Used for drift detection and provenance tracing across pipeline
+    runs.
+  generatedAt: '2026-04-01T12:58:32.598777+00:00'
+  sourceFile: outputs/week4/lineage_snapshots.jsonl
+  sourceType: week4
+servers:
+  local:
+    type: local
+    path: outputs/week4/lineage_snapshots.jsonl
+    format: jsonl
+terms:
+  usage: Internal inter-system data contract. Do not publish.
+  limitations: confidence must remain in 0.0–1.0 float range.
+schema:
+  snapshot_id:
+    type: string
+    required: true
+    nullable: false
+  timestamp:
+    type: string
+    format: date-time
+    required: true
+    nullable: false
+  nodes:
+    type: array
+    required: true
+    nullable: false
+    items:
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+  edges:
+    type: array
+    required: true
+    nullable: false
+    items:
+      properties:
+        source:
+          type: string
+        target:
+          type: string
+        relation:
+          type: string
+quality:
+  type: SodaChecks
+  specification:
+    checks for lineage_snapshots:
+    - row_count >= 1
+    - missing_count(snapshot_id) = 0
+    - missing_count(timestamp) = 0
+  structural:
+  - rule: snapshot_id_not_null
+    field: snapshot_id
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: snapshot_id must be present. It is the primary key for lineage snapshots.
+  - rule: timestamp_not_null
+    field: timestamp
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: timestamp is required for ordering snapshots chronologically and
+      detecting drift.
+  - rule: timestamp_datetime_format
+    field: timestamp
+    type: structural
+    check: datetime_format
+    severity: WARNING
+    description: '''timestamp'' contains ISO-8601 datetime strings in all observed
+      rows. Inferred as timestamp field.'
+    source: inferred
+  - rule: node_count_not_null
+    field: node_count
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''node_count'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: edge_count_not_null
+    field: edge_count
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''edge_count'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  statistical: []
+  crossField: []
+lineage:
+  upstream: []
+  downstream: []
+llm_annotations:
+  status: skipped
+  reason: no ambiguous fields requiring annotation
+  model: null
+  annotations: []

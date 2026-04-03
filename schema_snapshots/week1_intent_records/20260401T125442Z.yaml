@@ -1,0 +1,299 @@
+kind: DataContract
+apiVersion: v3.0.0
+id: week1-intent-records
+info:
+  title: Week1 Intent Records Data Contract
+  version: 1.0.0
+  description: Intent records produced by the Week 1 mutation-tracking pipeline. Each
+    record captures a single tool invocation (apply_patch, bash, etc.) bound to a
+    developer intent, with outcome, file path, and content hash. Downstream consumers
+    use these records for attribution and audit.
+  owner: contract-enforcer-platform
+  generatedAt: '2026-04-01T12:54:42.892068+00:00'
+  sourceFile: outputs/week1/intent_records.jsonl
+  sourceType: week1
+servers:
+  local:
+    type: local
+    path: outputs/week1/intent_records.jsonl
+    format: jsonl
+terms:
+  usage: Internal inter-system data contract. Do not publish externally.
+  limitations: confidence must remain in 0.0–1.0 float range. Schema evolution must
+    follow backward-compatibility rules. Breaking changes require a version bump.
+schema:
+  id:
+    type: string
+    format: uuid
+    required: true
+    nullable: false
+  timestamp:
+    type: string
+    format: date-time
+    required: true
+    nullable: false
+  tool:
+    type: string
+    required: true
+    nullable: false
+  intentId:
+    type: string
+    required: true
+    nullable: false
+  mutationClass:
+    type: string
+    required: true
+    nullable: false
+  mutationType:
+    type: string
+    required: true
+    nullable: false
+  filePath:
+    type: string
+    required: false
+    nullable: true
+  contentHash:
+    type: string
+    format: hex64-sha256
+    required: false
+    nullable: true
+  outcome:
+    type: string
+    required: true
+    nullable: false
+  revisionId:
+    type: string
+    required: false
+    nullable: true
+  fileSizeBytes:
+    type: integer
+    required: false
+    nullable: true
+quality:
+  type: SodaChecks
+  specification:
+    checks for week1_intent_records:
+    - row_count > 0: null
+    - missing_count(id) = 0: null
+    - duplicate_count(id) = 0: null
+    - missing_count(intentId) = 0: null
+    - missing_count(timestamp) = 0: null
+    - missing_count(tool) = 0: null
+  structural:
+  - rule: id_uuid_format
+    field: id
+    type: pattern
+    pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+    severity: BREAKING
+    description: id must be a valid UUID v4. Each intent record must be globally unique.
+  - rule: id_not_null
+    field: id
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: id must be present on every record.
+  - rule: intent_id_not_null
+    field: intentId
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: intentId links the mutation to a developer goal. Must be present
+      for attribution.
+  - rule: timestamp_not_null
+    field: timestamp
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: timestamp is required for temporal ordering and replay.
+  - rule: tool_not_null
+    field: tool
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: tool identifies which agent action was taken.
+  - rule: content_hash_hex64
+    field: contentHash
+    type: pattern
+    pattern: ^[0-9a-f]{64}$
+    severity: ERROR
+    description: contentHash must be a 64-character lowercase SHA-256 hex digest of
+      the file content at the time of mutation.
+  - rule: outcome_enum
+    field: outcome
+    type: accepted_values
+    accepted_values:
+    - success
+    - failure
+    - partial
+    severity: ERROR
+    description: outcome must be one of the canonical result states.
+  - rule: mutation_type_enum
+    field: mutationType
+    type: accepted_values
+    accepted_values:
+    - WRITE
+    - READ
+    - DELETE
+    - EXEC
+    severity: WARNING
+    description: mutationType must use the canonical enum for consistent downstream
+      filtering.
+  - rule: timestamp_datetime_format
+    field: timestamp
+    type: structural
+    check: datetime_format
+    severity: WARNING
+    description: '''timestamp'' contains ISO-8601 datetime strings in all observed
+      rows. Inferred as timestamp field.'
+    source: inferred
+  - rule: tool_accepted_values
+    field: tool
+    type: accepted_values
+    accepted_values:
+    - apply_patch
+    - write_to_file
+    severity: WARNING
+    description: '''tool'' has low cardinality (2 distinct values). Inferred as enum.
+      Values outside this set indicate a new undeclared variant.'
+    source: inferred
+  - rule: intentId_not_null
+    field: intentId
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''intentId'' has no null values in the observed data. Inferred as
+      required.'
+    source: inferred
+  - rule: intentId_accepted_values
+    field: intentId
+    type: accepted_values
+    accepted_values:
+    - add-audit-log
+    - optimize-billing
+    - refactor-auth
+    severity: WARNING
+    description: '''intentId'' has low cardinality (3 distinct values). Inferred as
+      enum. Values outside this set indicate a new undeclared variant.'
+    source: inferred
+  - rule: mutationClass_not_null
+    field: mutationClass
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''mutationClass'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: mutationClass_accepted_values
+    field: mutationClass
+    type: accepted_values
+    accepted_values:
+    - AST_REFACTOR
+    - INTENT_EVOLUTION
+    severity: WARNING
+    description: '''mutationClass'' has low cardinality (2 distinct values). Inferred
+      as enum. Values outside this set indicate a new undeclared variant.'
+    source: inferred
+  - rule: mutationType_not_null
+    field: mutationType
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''mutationType'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: mutationType_pascalcase
+    field: mutationType
+    type: pattern
+    pattern: ^[A-Z][a-zA-Z0-9]+$
+    severity: WARNING
+    description: '''mutationType'' uses PascalCase in all observed values. Inferred
+      naming convention.'
+    source: inferred
+  - rule: mutationType_accepted_values
+    field: mutationType
+    type: accepted_values
+    accepted_values:
+    - READ
+    - WRITE
+    severity: WARNING
+    description: '''mutationType'' has low cardinality (2 distinct values). Inferred
+      as enum. Values outside this set indicate a new undeclared variant.'
+    source: inferred
+  - rule: filePath_not_null
+    field: filePath
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''filePath'' has no null values in the observed data. Inferred as
+      required.'
+    source: inferred
+  - rule: contentHash_not_null
+    field: contentHash
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''contentHash'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: contentHash_hex64_format
+    field: contentHash
+    type: pattern
+    pattern: ^[0-9a-f]{64}$
+    severity: ERROR
+    description: '''contentHash'' contains 64-char lowercase hex values in all observed
+      rows. Inferred as SHA-256 digest field.'
+    source: inferred
+  - rule: outcome_not_null
+    field: outcome
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''outcome'' has no null values in the observed data. Inferred as
+      required.'
+    source: inferred
+  - rule: outcome_accepted_values
+    field: outcome
+    type: accepted_values
+    accepted_values:
+    - success
+    severity: WARNING
+    description: '''outcome'' has low cardinality (1 distinct values). Inferred as
+      enum. Values outside this set indicate a new undeclared variant.'
+    source: inferred
+  - rule: revisionId_not_null
+    field: revisionId
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''revisionId'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: revisionId_accepted_values
+    field: revisionId
+    type: accepted_values
+    accepted_values:
+    - c33e8e26f6e893ef77d0ef729620b4dc29835c67
+    - cc60fce92b743d2e6a893ef77d0ef729620b4dc2
+    - dd71fce82c854e3f7b904fg88e1fg830731c5ed3
+    severity: WARNING
+    description: '''revisionId'' has low cardinality (3 distinct values). Inferred
+      as enum. Values outside this set indicate a new undeclared variant.'
+    source: inferred
+  - rule: fileSizeBytes_not_null
+    field: fileSizeBytes
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''fileSizeBytes'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  statistical: []
+  crossField: []
+lineage:
+  upstream: []
+  downstream: []
+llm_annotations:
+  status: skipped
+  reason: missing_api_key
+  model: null
+  annotations: []

@@ -1,0 +1,260 @@
+{
+  "report_id": "enforcer-20260403T080306Z",
+  "generated_at": "2026-04-03T08:03:06.227812+00:00",
+  "report_version": "4.0.0",
+  "data_health_score": 59,
+  "health_score_breakdown": {
+    "total_checks": 111,
+    "passed": 88,
+    "failed": 10,
+    "errored": 12,
+    "base_score": 79.3,
+    "critical_failures": 1,
+    "penalty_applied": 20,
+    "contracts_covered": 8
+  },
+  "health_narrative": "Overall data health score is 59/100 (critical \u2014 immediate action required). Across 8 contract(s), 88 of 111 validation checks passed (79% pass rate). There are 1 critical violation(s) in the violation log, each applying a 20-point penalty (total penalty: 20 points). 10 check(s) failed and 12 errored (missing fields). These are marked in the top violations section. The system is not in a deployable state. All CRITICAL violations must be resolved before the next release.",
+  "top_violations": [
+    {
+      "source": "violation_log",
+      "field": "extracted_facts[*].confidence",
+      "system": "week3-document-refinery-extractions",
+      "severity": "CRITICAL",
+      "description": "'extracted_facts[*].confidence': 50 records outside [0.0, 1.0]. Observed min=90.0000, max=90.0000.",
+      "impact": "Affects 50 records. Downstream: week4-cartographer.",
+      "detected_at": "2026-04-01T20:01:30.265386+00:00"
+    },
+    {
+      "source": "runner",
+      "field": "id",
+      "system": "week1-intent-records",
+      "severity": "CRITICAL",
+      "description": "'id': 8 records do not match pattern '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'.",
+      "impact": "8 records failing this check.",
+      "check_id": "week1.id.pattern"
+    },
+    {
+      "source": "runner",
+      "field": "source_hash",
+      "system": "week3-document-refinery-extractions",
+      "severity": "CRITICAL",
+      "description": "Field 'source_hash' not present in any record (missing column).",
+      "impact": "Check failed \u2014 see details.",
+      "check_id": "week3.source_hash.pattern"
+    },
+    {
+      "source": "runner",
+      "field": "extraction_model",
+      "system": "week3-document-refinery-extractions",
+      "severity": "CRITICAL",
+      "description": "Field 'extraction_model' not present in any record (missing column).",
+      "impact": "Check failed \u2014 see details.",
+      "check_id": "week3.extraction_model.pattern"
+    },
+    {
+      "source": "runner",
+      "field": "extracted_facts.items.fact_id",
+      "system": "week3-document-refinery-extractions",
+      "severity": "CRITICAL",
+      "description": "Field 'extracted_facts.items.fact_id' not present in any record (missing column).",
+      "impact": "Check failed \u2014 see details.",
+      "check_id": "week3.extracted_facts.items.fact_id.pattern"
+    },
+    {
+      "source": "runner",
+      "field": "source_hash",
+      "system": "week3-document-refinery-extractions",
+      "severity": "CRITICAL",
+      "description": "Field 'source_hash' not present in any record (missing column).",
+      "impact": "Check failed \u2014 see details.",
+      "check_id": "week3.source_hash.pattern"
+    },
+    {
+      "source": "runner",
+      "field": "extraction_model",
+      "system": "week3-document-refinery-extractions",
+      "severity": "CRITICAL",
+      "description": "Field 'extraction_model' not present in any record (missing column).",
+      "impact": "Check failed \u2014 see details.",
+      "check_id": "week3.extraction_model.pattern"
+    },
+    {
+      "source": "runner",
+      "field": "extracted_facts.items.fact_id",
+      "system": "week3-document-refinery-extractions",
+      "severity": "CRITICAL",
+      "description": "Field 'extracted_facts.items.fact_id' not present in any record (missing column).",
+      "impact": "Check failed \u2014 see details.",
+      "check_id": "week3.extracted_facts.items.fact_id.pattern"
+    },
+    {
+      "source": "runner",
+      "field": "source_hash",
+      "system": "week3-document-refinery-extractions",
+      "severity": "CRITICAL",
+      "description": "Field 'source_hash' not present in any record (missing column).",
+      "impact": "Check failed \u2014 see details.",
+      "check_id": "week3.source_hash.pattern"
+    },
+    {
+      "source": "runner",
+      "field": "extraction_model",
+      "system": "week3-document-refinery-extractions",
+      "severity": "CRITICAL",
+      "description": "Field 'extraction_model' not present in any record (missing column).",
+      "impact": "Check failed \u2014 see details.",
+      "check_id": "week3.extraction_model.pattern"
+    }
+  ],
+  "total_violations_by_severity": {
+    "CRITICAL": 14,
+    "HIGH": 3,
+    "MEDIUM": 4,
+    "LOW": 0,
+    "BREAKING": 1,
+    "ERROR": 2,
+    "WARNING": 1
+  },
+  "schema_changes": [
+    {
+      "contract_id": "week3-extractions",
+      "old_snapshot": "20260401T123850Z.yaml",
+      "new_snapshot": "20260402T090000Z.yaml",
+      "compatibility_verdict": "BREAKING",
+      "migration_required": true,
+      "total_changes": 5,
+      "breaking_changes": 2,
+      "critical_issues": 1,
+      "plain_language_summary": "Schema for 'week3-extractions' changed between snapshots 20260401T123850Z.yaml and 20260402T090000Z.yaml. Compatibility: BREAKING. 2 breaking change(s), 1 critical issue(s). Migration is required before deploying.",
+      "top_changes": [
+        "fact: 'fact' removed \u2014 BREAKING for all consumers reading this field.",
+        "entity_type: 'entity_type' added (nullable). Safe addition.",
+        "extracted_text: 'extracted_text' added (required). BREAKING: existing writers must populate this field.",
+        "extraction_pipeline_version: 'extraction_pipeline_version' added (nullable). Safe addition.",
+        "confidence: 'confidence' maximum changed from 0.9 to 100.0 \u2014 scale is now 0\u2013100 instead of 0.0\u20131.0. CRITICAL: downstream ranking inflated by 100\u00d7."
+      ],
+      "required_action": "STOP deployment and execute migration checklist."
+    },
+    {
+      "contract_id": "week3_document_refinery_extractions",
+      "old_snapshot": "20260401T184727Z.yaml",
+      "new_snapshot": "20260402T090000Z.yaml",
+      "compatibility_verdict": "BREAKING",
+      "migration_required": true,
+      "total_changes": 4,
+      "breaking_changes": 1,
+      "critical_issues": 0,
+      "plain_language_summary": "Schema for 'week3_document_refinery_extractions' changed between snapshots 20260401T184727Z.yaml and 20260402T090000Z.yaml. Compatibility: BREAKING. 1 breaking change(s), 0 critical issue(s). Migration is required before deploying.",
+      "top_changes": [
+        "extracted_at: 'extracted_at' renamed to 'extraction_pipeline_version'. All consumers referencing the old name will break.",
+        "entities: 'entities' removed \u2014 BREAKING for all consumers reading this field.",
+        "entity_refs: 'entity_refs' removed \u2014 BREAKING for all consumers reading this field.",
+        "processing_time_ms: 'processing_time_ms' removed \u2014 BREAKING for all consumers reading this field."
+      ],
+      "required_action": "STOP deployment and execute migration checklist."
+    },
+    {
+      "contract_id": "week5-events",
+      "old_snapshot": "20260401T123909Z.yaml",
+      "new_snapshot": "20260402T090000Z.yaml",
+      "compatibility_verdict": "BREAKING",
+      "migration_required": true,
+      "total_changes": 6,
+      "breaking_changes": 1,
+      "critical_issues": 0,
+      "plain_language_summary": "Schema for 'week5-events' changed between snapshots 20260401T123909Z.yaml and 20260402T090000Z.yaml. Compatibility: BREAKING. 1 breaking change(s), 0 critical issue(s). Migration is required before deploying.",
+      "top_changes": [
+        "_conflict_note: '_conflict_note' removed \u2014 BREAKING for all consumers reading this field.",
+        "global_sequence_id: 'global_sequence_id' added (nullable). Safe addition.",
+        "event_type: 'event_type' enum values added: ['LoanApproved', 'LoanRejected']. Consumers must handle new values.",
+        "event_version: 'event_version' range changed: [1.0, 2.0] \u2192 [1.0, 3.0]. Existing values outside the new range will fail validation.",
+        "schema_version: 'schema_version' enum values added: ['3.0']. Consumers must handle new values."
+      ],
+      "required_action": "STOP deployment and execute migration checklist."
+    }
+  ],
+  "ai_risk_assessment": {
+    "ai_risk_level": "LOW",
+    "embedding_drift": {
+      "status": "PASS",
+      "method": "lsa_fallback",
+      "drift_score": 0.0,
+      "threshold": 0.15,
+      "backend": "sklearn:tfidf+svd"
+    },
+    "prompt_validation": {
+      "status": "PASS",
+      "quarantined_records": 0,
+      "total_records": 50
+    },
+    "llm_output_validation": {
+      "status": "PASS",
+      "violation_rate": 0.0,
+      "trend": "stable",
+      "schema_violations": 0
+    },
+    "interpretation": "Embedding drift is within acceptable range (drift=0.0000, threshold=0.15) \u2014 no semantic shift detected in extracted facts. The extraction pipeline is producing semantically consistent output. Embedding method: lsa_fallback. All extraction records passed prompt schema validation \u2014 no invalid inputs reached the LLM. LLM schema violations remain stable at 0% \u2014 no prompt degradation detected. All output verdicts are valid (PASS/FAIL/WARN).",
+    "source_file": "validation_reports/ai_extensions.json"
+  },
+  "recommendations": [
+    {
+      "priority": 1,
+      "severity": "CRITICAL",
+      "title": "Fix confidence scale: revert to 0.0\u20131.0 float range",
+      "action": "In the extraction pipeline (see scripts/inject_violation.py), change the confidence output to emit float values in [0.0, 1.0]. Current values are in [0, 100] which breaks week4 ranking weights by 100\u00d7.",
+      "field": "extracted_facts[*].confidence",
+      "contract": "week3-document-refinery-extractions",
+      "fix": "confidence = raw_score / 100.0  # normalize before writing"
+    },
+    {
+      "priority": 2,
+      "severity": "MEDIUM",
+      "title": "Fix zero-variance confidence: extractor returning hard-coded default",
+      "action": "The extractor is emitting a constant confidence value (all values = 90.0). Verify the model scoring logic in the extraction pipeline and ensure per-fact confidence is computed rather than a static default.",
+      "field": "extracted_facts[*].confidence",
+      "contract": "week3-document-refinery-extractions",
+      "fix": "Replace static `confidence = 0.9` with per-fact model logit score."
+    },
+    {
+      "priority": 3,
+      "severity": "HIGH",
+      "title": "Resolve check failure: extracted_facts[*].confidence",
+      "action": "'extracted_facts[*].confidence' z=99.00: baseline_mean=0.9000, current_mean=90.0000.",
+      "field": "extracted_facts[*].confidence",
+      "contract": "week3-document-refinery-extractions"
+    },
+    {
+      "priority": 5,
+      "severity": "CRITICAL",
+      "title": "Schema: revert confidence scale in week3-extractions",
+      "action": "Field 'confidence' maximum changed from 0.9 to 100.0. Divide all confidence values by 100 before writing to downstream consumers.",
+      "field": "confidence",
+      "contract": "week3-extractions",
+      "fix": "confidence = value / 100.0"
+    },
+    {
+      "priority": 6,
+      "severity": "HIGH",
+      "title": "Schema: add backward-compat alias for 'extracted_at' in week3_document_refinery_extractions",
+      "action": "Field 'extracted_at' was renamed. Add an alias in the pipeline output so existing consumers do not crash with KeyError.",
+      "field": "extracted_at",
+      "contract": "week3_document_refinery_extractions"
+    },
+    {
+      "priority": 8,
+      "severity": "HIGH",
+      "title": "System health critical \u2014 run full re-validation after fixes",
+      "action": "Data health score is 59/100 (below 60). After applying the above fixes, re-run: python contracts/runner.py --contract-id week3-document-refinery-extractions --source outputs/week3/extractions.jsonl and verify all CRITICAL checks pass."
+    }
+  ],
+  "sources": {
+    "validation_reports": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/validation_reports",
+    "violations_log": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/violation_log/violations.jsonl",
+    "ai_extensions": "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/validation_reports/ai_extensions.json",
+    "schema_evolutions": [
+      "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/validation_reports/schema_evolution_week3-extractions.json",
+      "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/validation_reports/schema_evolution_week3_document_refinery_extractions.json",
+      "/Users/aman/Desktop/projects/10academy/-contract-enforcer-platform/validation_reports/schema_evolution_week5-events.json"
+    ]
+  }
+}

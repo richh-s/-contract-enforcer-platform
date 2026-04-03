@@ -1,0 +1,93 @@
+{
+  "contract_id": "urn:contract:week3-extractions:v1",
+  "data_path": "outputs/week3/extractions.jsonl",
+  "run_timestamp": "2026-04-01T12:41:43.900699+00:00",
+  "summary": {
+    "total_checks": 7,
+    "passed": 5,
+    "failed": 1,
+    "errors": 0,
+    "skipped": 1,
+    "breaking_violations": 0
+  },
+  "checks": [
+    {
+      "check_id": "structural.doc_id_hex64",
+      "field": "doc_id",
+      "rule": "doc_id_hex64",
+      "status": "PASS",
+      "severity": "BREAKING",
+      "message": "'doc_id': all values match pattern.",
+      "failed_count": 0,
+      "total_count": 50,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.fact_not_null",
+      "field": "fact",
+      "rule": "fact_not_null",
+      "status": "PASS",
+      "severity": "BREAKING",
+      "message": "'fact': no null values (34130 checked).",
+      "failed_count": 0,
+      "total_count": 34130,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.doc_id_not_null",
+      "field": "doc_id",
+      "rule": "doc_id_not_null",
+      "status": "PASS",
+      "severity": "BREAKING",
+      "message": "'doc_id': no null values (50 checked).",
+      "failed_count": 0,
+      "total_count": 50,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.confidence_not_null",
+      "field": "confidence",
+      "rule": "confidence_not_null",
+      "status": "PASS",
+      "severity": "BREAKING",
+      "message": "'confidence': no null values (34130 checked).",
+      "failed_count": 0,
+      "total_count": 34130,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.entities_type_enum",
+      "field": "entities",
+      "rule": "entities_type_enum",
+      "status": "SKIP",
+      "severity": "WARNING",
+      "message": "Aspirational clause \u2014 field 'entities' not yet in data schema.",
+      "failed_count": 0,
+      "total_count": 50,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.doc_id_hex64_format",
+      "field": "doc_id",
+      "rule": "doc_id_hex64_format",
+      "status": "PASS",
+      "severity": "ERROR",
+      "message": "'doc_id': all values match pattern.",
+      "failed_count": 0,
+      "total_count": 50,
+      "sample_violations": []
+    },
+    {
+      "check_id": "statistical.confidence_non_zero_variance",
+      "field": "confidence",
+      "rule": "confidence_non_zero_variance",
+      "status": "FAIL",
+      "severity": "WARNING",
+      "message": "'confidence': std=0.0, mean=0.9000 \u2014 all 34130 values are identical. Likely hard-coded default value.",
+      "failed_count": 0,
+      "total_count": 34130,
+      "sample_violations": []
+    }
+  ],
+  "exit_code": 0
+}

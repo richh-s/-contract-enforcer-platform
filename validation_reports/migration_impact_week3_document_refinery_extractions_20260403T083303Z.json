@@ -1,0 +1,189 @@
+{
+  "contract_id": "week3_document_refinery_extractions",
+  "old_snapshot": "20260401T184727Z.yaml",
+  "new_snapshot": "20260402T090000Z.yaml",
+  "overall_compatibility": {
+    "verdict": "BREAKING",
+    "backward": false,
+    "forward": false,
+    "full": false
+  },
+  "changes": [
+    {
+      "field": "extracted_at",
+      "category": "RENAME_COLUMN",
+      "mapped_to_spec": "RENAME_COLUMN",
+      "change_type": "BREAKING",
+      "severity": "HIGH",
+      "compatibility": {
+        "backward": false,
+        "forward": false,
+        "full": false
+      },
+      "old_value": {
+        "type": "string",
+        "format": "date-time",
+        "required": false,
+        "nullable": true
+      },
+      "new_value": {
+        "type": "string",
+        "required": false,
+        "nullable": true
+      },
+      "human_diff": "'extracted_at' renamed to 'extraction_pipeline_version'. All consumers referencing the old name will break.",
+      "renamed_to": "extraction_pipeline_version"
+    },
+    {
+      "field": "entities",
+      "category": "REMOVE_COLUMN",
+      "mapped_to_spec": "REMOVE_COLUMN",
+      "change_type": "PARTIAL",
+      "severity": "HIGH",
+      "compatibility": {
+        "backward": false,
+        "forward": true,
+        "full": false
+      },
+      "old_value": {
+        "type": "array",
+        "required": false,
+        "nullable": true,
+        "items": {
+          "entity_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "PERSON",
+              "ORG",
+              "LOCATION",
+              "DATE",
+              "MONEY",
+              "FACT",
+              "OTHER"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "new_value": {},
+      "human_diff": "'entities' removed \u2014 BREAKING for all consumers reading this field."
+    },
+    {
+      "field": "entity_refs",
+      "category": "REMOVE_COLUMN",
+      "mapped_to_spec": "REMOVE_COLUMN",
+      "change_type": "PARTIAL",
+      "severity": "HIGH",
+      "compatibility": {
+        "backward": false,
+        "forward": true,
+        "full": false
+      },
+      "old_value": {
+        "type": "array",
+        "required": false,
+        "nullable": true,
+        "items": {
+          "fact_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entity_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "new_value": {},
+      "human_diff": "'entity_refs' removed \u2014 BREAKING for all consumers reading this field."
+    },
+    {
+      "field": "processing_time_ms",
+      "category": "REMOVE_COLUMN",
+      "mapped_to_spec": "REMOVE_COLUMN",
+      "change_type": "PARTIAL",
+      "severity": "HIGH",
+      "compatibility": {
+        "backward": false,
+        "forward": true,
+        "full": false
+      },
+      "old_value": {
+        "type": "integer",
+        "required": false,
+        "nullable": true,
+        "minimum": 0
+      },
+      "new_value": {},
+      "human_diff": "'processing_time_ms' removed \u2014 BREAKING for all consumers reading this field."
+    }
+  ],
+  "migration_required": true,
+  "migration_summary": {
+    "total_changes": 4,
+    "breaking_changes": 1,
+    "partial_changes": 3,
+    "compatible_changes": 0,
+    "critical_issues": 0,
+    "high_severity": 4
+  },
+  "blast_radius": {
+    "affected_consumers_count": 0,
+    "registry_consumers": [],
+    "lineage_enriched_consumers": [],
+    "affected_nodes": [],
+    "affected_pipelines": [],
+    "blast_radius_method": "registry_primary+lineage_enrichment",
+    "source_lineage_snapshot": "S-003",
+    "total_downstream_nodes": 1
+  },
+  "consumer_impact": [],
+  "migration_checklist": [
+    "Freeze schema in production until migration is complete",
+    "Identify all consumers reading affected fields: ['extracted_at']",
+    "Add backward-compat alias: expose 'extracted_at' alongside 'extraction_pipeline_version' during migration window",
+    "Set a deprecation deadline for old field names (recommend: 30 days)",
+    "Audit all consumers for references to removed fields: ['entities', 'entity_refs', 'processing_time_ms']",
+    "Deploy schema change behind a feature flag \u2014 enable for one consumer at a time",
+    "Run ValidationRunner against new snapshot: python contracts/runner.py --contract-id ...",
+    "Validate downstream pipeline outputs against expected distributions",
+    "Monitor for anomalies 24 h post-deployment before enabling for all consumers",
+    "Remove deprecated aliases / tombstoned fields after migration window closes"
+  ],
+  "rollback_plan": [
+    "Restore previous schema snapshot by reverting the snapshot directory to last known-good commit",
+    "Run: git revert <offending-commit> --no-edit  (do NOT force-push to main)",
+    "Re-run ValidationRunner against restored snapshot to confirm it passes all checks",
+    "Replay affected pipelines from the last valid checkpoint",
+    "Notify downstream consumers that the rollback is complete and stable",
+    "Open a post-mortem issue documenting the root cause and adding a CI guard to prevent recurrence"
+  ],
+  "exact_diff": {
+    "added": [],
+    "removed": [
+      "entities",
+      "entity_refs",
+      "processing_time_ms"
+    ],
+    "modified": [
+      {
+        "field": "extracted_at",
+        "renamed_to": "extraction_pipeline_version"
+      }
+    ]
+  },
+  "temporal_context": {
+    "old_snapshot_timestamp": "2026-04-01T18:47:27+00:00",
+    "new_snapshot_timestamp": "2026-04-02T09:00:00+00:00",
+    "change_window_seconds": 51153,
+    "change_window_human": "14h"
+  },
+  "generated_at": "2026-04-03T08:33:03.576488+00:00",
+  "analyzer_version": "3.0.0"
+}

@@ -1,0 +1,173 @@
+kind: DataContract
+apiVersion: v3.0.0
+id: urn:contract:week3-extractions:v2
+info:
+  title: Week3 Extractions Data Contract
+  version: 2.0.0
+  owner: contract-enforcer-platform
+  generatedAt: '2026-04-02T09:00:00.000000+00:00'
+  sourceFile: outputs/week3/extractions.jsonl
+  sourceType: week3
+servers:
+  local:
+    type: local
+    path: outputs/week3/extractions.jsonl
+    format: jsonl
+terms:
+  usage: Internal inter-system data contract. Do not publish externally.
+  limitations: confidence must remain in 0.0–1.0 float range. Schema evolution must
+    follow backward-compatibility rules. Breaking changes require a version bump.
+models:
+  week3_extractions:
+    description: Profile of outputs/week3/extractions.jsonl (week3 pipeline output) — v2 schema.
+    fields:
+      doc_id:
+        type: string
+        required: true
+        nullable: false
+        description: Inferred from profile. null_fraction=0.000, n_unique=50
+        format: hex64-sha256
+      extracted_text:
+        type: string
+        required: true
+        nullable: false
+        description: >
+          Renamed from 'fact' in v2. The extracted text fragment from the source document.
+          Must be present and non-empty for every row.
+      confidence:
+        type: number
+        required: true
+        nullable: false
+        description: >
+          BREAKING CHANGE in v2: confidence scale changed from 0.0–1.0 to 0–100.
+          This breaks downstream week4 ranking weights — a score of 0.95 is now
+          expressed as 95, inflating attribution by 100x.
+        minimum: 0.0
+        maximum: 100.0
+      entity_type:
+        type: string
+        required: false
+        nullable: true
+        description: >
+          New field in v2. Named entity category for the extracted fact.
+          Nullable until all pipeline versions populate it.
+        enum:
+          - PERSON
+          - ORG
+          - LOCATION
+          - DATE
+          - MONEY
+          - FACT
+          - OTHER
+      extraction_pipeline_version:
+        type: string
+        required: false
+        nullable: true
+        description: >
+          New field in v2. Version string of the extraction pipeline that produced
+          this record. Enables reproducibility tracking across pipeline upgrades.
+quality:
+  type: SodaChecks
+  specification:
+    checks for week3_extractions:
+    - row_count > 0: null
+    - missing_count(doc_id) = 0: null
+    - duplicate_count(doc_id) > 0: warn
+    - missing_count(extracted_text) = 0: null
+    - missing_count(confidence) = 0: null
+    - min(confidence) >= 0.0: null
+    - max(confidence) <= 100.0: null
+  structural:
+  - rule: doc_id_hex64
+    field: doc_id
+    type: pattern
+    pattern: ^[0-9a-f]{64}$
+    severity: BREAKING
+    description: doc_id must be a 64-character lowercase SHA-256 hex digest.
+  - rule: extracted_text_not_null
+    field: extracted_text
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: extracted_text is the extracted text fragment. Must be present and non-empty.
+  - rule: doc_id_not_null
+    field: doc_id
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: doc_id must be present on every row.
+  - rule: confidence_not_null
+    field: confidence
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: confidence must be present.
+  - rule: confidence_range_0_100
+    field: confidence
+    type: range
+    minimum: 0.0
+    maximum: 100.0
+    severity: BREAKING
+    description: >
+      v2 confidence scale is 0–100. Downstream consumers expecting 0.0–1.0 will
+      silently misrank all facts — breaking attribution weights in week4.
+  - rule: entity_type_enum
+    field: entity_type
+    type: accepted_values
+    accepted_values:
+    - PERSON
+    - ORG
+    - LOCATION
+    - DATE
+    - MONEY
+    - FACT
+    - OTHER
+    severity: WARNING
+    description: entity_type must use the canonical enum when present.
+  statistical:
+  - rule: confidence_non_zero_variance
+    field: confidence
+    type: statistical
+    check: non_zero_variance
+    severity: WARNING
+    description: std=0 on confidence indicates a hard-coded default.
+  crossField: []
+lineage:
+  snapshot_id: S-002
+  timestamp: '2026-04-02T09:00:00.000000'
+  node_count: 16
+  edge_count: 11
+  node_types:
+  - data
+  - transformation
+  edge_relations:
+  - SQL_PRODUCT
+  source_file: outputs/week4/lineage_snapshots.jsonl
+  upstream: []
+  downstream:
+  - id: week4-cartographer
+    description: Cartographer ingests doc_id and extracted_facts as node metadata
+    fields_consumed:
+    - doc_id
+    - extracted_text
+    - confidence
+    - extraction_pipeline_version
+    breaking_if_changed:
+    - confidence
+    - doc_id
+  - id: week5-event-publisher
+    description: Event publisher reads confidence to generate DecisionGenerated events
+    fields_consumed:
+    - doc_id
+    - confidence
+    breaking_if_changed:
+    - confidence
+  git_commit: a1b2c3d4e5f6
+  git_author: richh-s
+  git_committed_at: '2026-04-02T09:00:00+03:00'
+  git_message: v2 schema — rename fact→extracted_text, scale confidence to 0-100
+llm_annotations:
+  status: skipped
+  reason: missing_api_key
+  model: null
+  annotations: []

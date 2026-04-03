@@ -1,0 +1,221 @@
+kind: DataContract
+apiVersion: v3.0.0
+id: langsmith-traces
+info:
+  title: Langsmith Traces Data Contract
+  version: 1.0.0
+  description: LangSmith-compatible run traces exported from the agent orchestration
+    layer. Each record is a chain/llm/tool run with inputs, outputs, token counts,
+    cost, and timing. Used for latency profiling, cost attribution, and regression
+    detection across pipeline versions.
+  owner: contract-enforcer-platform
+  generatedAt: '2026-04-01T12:54:43.237484+00:00'
+  sourceFile: outputs/traces/runs.jsonl
+  sourceType: traces
+servers:
+  local:
+    type: local
+    path: outputs/traces/runs.jsonl
+    format: jsonl
+terms:
+  usage: Internal inter-system data contract. Do not publish externally.
+  limitations: confidence must remain in 0.0–1.0 float range. Schema evolution must
+    follow backward-compatibility rules. Breaking changes require a version bump.
+schema:
+  id:
+    type: string
+    format: uuid
+    required: true
+    nullable: false
+  name:
+    type: string
+    required: true
+    nullable: false
+  run_type:
+    type: string
+    required: true
+    nullable: false
+    enum:
+    - chain
+    - llm
+    - tool
+    - retriever
+    - embedding
+  start_time:
+    type: string
+    format: date-time
+    required: true
+    nullable: false
+  end_time:
+    type: string
+    format: date-time
+    required: false
+    nullable: true
+  prompt_tokens:
+    type: integer
+    required: false
+    nullable: true
+  completion_tokens:
+    type: integer
+    required: false
+    nullable: true
+  total_tokens:
+    type: integer
+    required: false
+    nullable: true
+  total_cost:
+    type: number
+    required: false
+    nullable: true
+  error:
+    type: string
+    required: false
+    nullable: true
+  inputs:
+    type: object
+    required: false
+    nullable: true
+  outputs:
+    type: object
+    required: false
+    nullable: true
+quality:
+  type: SodaChecks
+  specification:
+    checks for langsmith_traces:
+    - row_count > 0: null
+    - missing_count(id) = 0: null
+    - duplicate_count(id) = 0: null
+    - missing_count(name) = 0: null
+    - missing_count(run_type) = 0: null
+    - missing_count(start_time) = 0: null
+  structural:
+  - rule: id_uuid_format
+    field: id
+    type: pattern
+    pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+    severity: BREAKING
+    description: id must be a valid UUID v7/v4. Each run must be uniquely addressable
+      in LangSmith.
+  - rule: id_not_null
+    field: id
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: id must be present on every run record.
+  - rule: name_not_null
+    field: name
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: name identifies the chain/tool/LLM step. Required for latency attribution.
+  - rule: run_type_enum
+    field: run_type
+    type: accepted_values
+    accepted_values:
+    - chain
+    - llm
+    - tool
+    - retriever
+    - embedding
+    severity: ERROR
+    description: run_type must be one of the LangSmith canonical run types.
+  - rule: start_time_not_null
+    field: start_time
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: start_time is required for latency calculation.
+  - rule: run_type_not_null
+    field: run_type
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''run_type'' has no null values in the observed data. Inferred as
+      required.'
+    source: inferred
+  - rule: run_type_accepted_values
+    field: run_type
+    type: accepted_values
+    accepted_values:
+    - chain
+    - llm
+    - tool
+    severity: WARNING
+    description: '''run_type'' has low cardinality (3 distinct values). Inferred as
+      enum. Values outside this set indicate a new undeclared variant.'
+    source: inferred
+  - rule: start_time_datetime_format
+    field: start_time
+    type: structural
+    check: datetime_format
+    severity: WARNING
+    description: '''start_time'' contains ISO-8601 datetime strings in all observed
+      rows. Inferred as timestamp field.'
+    source: inferred
+  - rule: end_time_not_null
+    field: end_time
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''end_time'' has no null values in the observed data. Inferred as
+      required.'
+    source: inferred
+  - rule: end_time_datetime_format
+    field: end_time
+    type: structural
+    check: datetime_format
+    severity: WARNING
+    description: '''end_time'' contains ISO-8601 datetime strings in all observed
+      rows. Inferred as timestamp field.'
+    source: inferred
+  - rule: prompt_tokens_not_null
+    field: prompt_tokens
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''prompt_tokens'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: completion_tokens_not_null
+    field: completion_tokens
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''completion_tokens'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: total_tokens_not_null
+    field: total_tokens
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''total_tokens'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: total_cost_not_null
+    field: total_cost
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''total_cost'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: session_id_not_null
+    field: session_id
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''session_id'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  statistical: []
+  crossField: []
+lineage:
+  upstream: []
+  downstream: []
+llm_annotations:
+  status: skipped
+  reason: missing_api_key
+  model: null
+  annotations: []

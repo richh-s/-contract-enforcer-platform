@@ -1,0 +1,297 @@
+kind: DataContract
+apiVersion: v3.0.0
+id: week5-event-stream
+info:
+  title: Week5 Events Data Contract
+  version: 1.0.0
+  description: Event-stream records emitted by the Week 5 lending-decision pipeline.
+    Each event captures a state transition (ApplicationSubmitted, CreditAnalysisCompleted,
+    etc.) with a UUID event_id, stream_id, stream_position, actor_id, and nested payload.
+    stream_position must increment monotonically within each stream_id.
+  owner: contract-enforcer-platform
+  generatedAt: '2026-04-01T12:54:42.719539+00:00'
+  sourceFile: outputs/week5/events.jsonl
+  sourceType: week5
+servers:
+  local:
+    type: local
+    path: outputs/week5/events.jsonl
+    format: jsonl
+terms:
+  usage: Internal inter-system data contract. Do not publish externally.
+  limitations: confidence must remain in 0.0–1.0 float range. Schema evolution must
+    follow backward-compatibility rules. Breaking changes require a version bump.
+schema:
+  event_id:
+    type: string
+    format: uuid
+    required: true
+    nullable: false
+  event_type:
+    type: string
+    required: true
+    nullable: false
+  stream_id:
+    type: string
+    required: true
+    nullable: false
+  stream_position:
+    type: integer
+    required: true
+    nullable: false
+  timestamp:
+    type: string
+    format: date-time
+    required: true
+    nullable: false
+  source_system:
+    type: string
+    required: true
+    nullable: false
+  actor_id:
+    type: string
+    required: false
+    nullable: true
+  schema_version:
+    type: string
+    required: true
+    nullable: false
+  payload:
+    type: object
+    required: false
+    nullable: true
+  metadata:
+    type: object
+    required: false
+    nullable: true
+quality:
+  type: SodaChecks
+  specification:
+    checks for week5_events:
+    - row_count > 0: null
+    - missing_count(event_id) = 0: null
+    - duplicate_count(event_id) = 0: null
+    - missing_count(event_type) = 0: null
+    - missing_count(timestamp) = 0: null
+    - missing_count(source_system) = 0: null
+    - missing_count(schema_version) = 0: null
+    - row_count >= 1: null
+  structural:
+  - rule: event_id_uuid
+    field: event_id
+    type: pattern
+    pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+    severity: BREAKING
+    description: event_id must be a valid UUID v4. Each event must be globally unique
+      and immutable once written to the event log.
+  - rule: event_id_not_null
+    field: event_id
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: event_id must be present on every event record.
+  - rule: event_type_pascalcase
+    field: event_type
+    type: pattern
+    pattern: ^[A-Z][a-zA-Z0-9]+$
+    severity: ERROR
+    description: event_type must follow PascalCase naming convention (e.g., ApplicationSubmitted,
+      CreditAnalysisCompleted). Snake_case or lowercase variants indicate a pipeline
+      schema drift.
+  - rule: event_type_enum
+    field: event_type
+    type: accepted_values
+    accepted_values: &id001
+    - AgentContextLoaded
+    - AgentNodeExecuted
+    - AgentSessionStarted
+    - ApplicationSubmitted
+    - AuditIntegrityCheckRun
+    - ComplianceCheckCompleted
+    - CreditAnalysisCompleted
+    - DecisionGenerated
+    - FraudScreeningCompleted
+    - HumanReviewCompleted
+    severity: ERROR
+    description: event_type must be a known, declared event type. Unknown event types
+      indicate an undeclared producer.
+  - rule: timestamp_not_null
+    field: timestamp
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: Every event must have a timestamp. Missing timestamps make temporal
+      ordering and replay impossible.
+  - rule: source_system_not_null
+    field: source_system
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: source_system identifies which service emitted the event. Required
+      for attribution and blame-chain analysis.
+  - rule: schema_version_not_null
+    field: schema_version
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: schema_version must be present so consumers can route to the correct
+      deserializer. Missing schema_version is a breaking contract gap.
+  - rule: actor_id_not_null
+    field: actor_id
+    type: structural
+    check: not_null
+    severity: WARNING
+    description: actor_id identifies the agent or user who caused the event. Required
+      for audit trail and accountability.
+  - rule: event_id_uuid_format
+    field: event_id
+    type: pattern
+    pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+    severity: ERROR
+    description: '''event_id'' contains UUID v4 values in all observed rows. Inferred
+      as UUID-format field.'
+    source: inferred
+  - rule: stream_id_not_null
+    field: stream_id
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''stream_id'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: stream_position_not_null
+    field: stream_position
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''stream_position'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: global_position_not_null
+    field: global_position
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''global_position'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: event_type_not_null
+    field: event_type
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''event_type'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: event_type_accepted_values
+    field: event_type
+    type: accepted_values
+    accepted_values: *id001
+    severity: WARNING
+    description: '''event_type'' has low cardinality (10 distinct values). Inferred
+      as enum. Values outside this set indicate a new undeclared variant.'
+    source: inferred
+  - rule: event_version_not_null
+    field: event_version
+    type: structural
+    check: not_null
+    severity: ERROR
+    description: '''event_version'' has no null values in the observed data. Inferred
+      as required.'
+    source: inferred
+  - rule: timestamp_datetime_format
+    field: timestamp
+    type: structural
+    check: datetime_format
+    severity: WARNING
+    description: '''timestamp'' contains ISO-8601 datetime strings in all observed
+      rows. Inferred as timestamp field.'
+    source: inferred
+  - rule: source_system_accepted_values
+    field: source_system
+    type: accepted_values
+    accepted_values:
+    - agent_orchestrator
+    - audit_service
+    - compliance_service
+    - credit_service
+    - fraud_service
+    - loan_service
+    - test_harness
+    severity: WARNING
+    description: '''source_system'' has low cardinality (7 distinct values). Inferred
+      as enum. Values outside this set indicate a new undeclared variant.'
+    source: inferred
+  - rule: schema_version_accepted_values
+    field: schema_version
+    type: accepted_values
+    accepted_values:
+    - '1.0'
+    - '2.0'
+    severity: WARNING
+    description: '''schema_version'' has low cardinality (2 distinct values). Inferred
+      as enum. Values outside this set indicate a new undeclared variant.'
+    source: inferred
+  - rule: metadata.correlation_id_accepted_values
+    field: metadata.correlation_id
+    type: accepted_values
+    accepted_values:
+    - APP-CONC-6AE5E8
+    - APP-MCP-809d31
+    - APP-MCP-B7D179
+    - APP-MCP-C95DF4
+    - APP-MCP-EC3408
+    - corr-APP-MCP-809d31
+    - corr-APP-MCP-B7D179
+    - corr-APP-MCP-C95DF4
+    - corr-APP-MCP-EC3408
+    severity: WARNING
+    description: '''metadata.correlation_id'' has low cardinality (9 distinct values).
+      Inferred as enum. Values outside this set indicate a new undeclared variant.'
+    source: inferred
+  - rule: metadata.causation_id_uuid_format
+    field: metadata.causation_id
+    type: pattern
+    pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+    severity: ERROR
+    description: '''metadata.causation_id'' contains UUID v4 values in all observed
+      rows. Inferred as UUID-format field.'
+    source: inferred
+  - rule: metadata.causation_id_accepted_values
+    field: metadata.causation_id
+    type: accepted_values
+    accepted_values:
+    - 01907c65-1695-455a-a4ea-ce65efaa2aef
+    - 3423e909-9849-4f2b-8c05-3500b4a7b210
+    - 8ecd1769-1825-4a80-92b9-9592bad190e5
+    - ba512d6b-d5ce-491a-941e-4542ab1e89d7
+    severity: WARNING
+    description: '''metadata.causation_id'' has low cardinality (4 distinct values).
+      Inferred as enum. Values outside this set indicate a new undeclared variant.'
+    source: inferred
+  statistical: []
+  crossField:
+  - rule: stream_position_monotonic
+    field: stream_position
+    type: cross_field
+    check: monotonic_per_group
+    group_by: stream_id
+    severity: ERROR
+    description: stream_position must increment by 1 within each stream_id. Gaps or
+      resets indicate a concurrent write collision or event replay bug.
+  - rule: timestamp_gte_payload_at
+    field: timestamp
+    type: cross_field
+    check: gte_payload_occurred_at
+    severity: WARNING
+    description: The top-level timestamp (when the event was recorded) must be greater
+      than or equal to any payload.*_at field (when it occurred). Violations indicate
+      clock skew or mis-ordered fields.
+lineage:
+  upstream: []
+  downstream: []
+llm_annotations:
+  status: skipped
+  reason: missing_api_key
+  model: null
+  annotations: []
