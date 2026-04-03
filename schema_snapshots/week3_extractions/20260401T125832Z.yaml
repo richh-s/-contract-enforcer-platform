@@ -1,0 +1,171 @@
+kind: DataContract
+apiVersion: v3.0.0
+id: week3-document-refinery-extractions
+info:
+  title: Week 3 Document Refinery — Extraction Records
+  version: 1.0.0
+  owner: week3-team
+  description: Document-refinery extraction output. Each record contains a doc_id
+    (SHA-256 of the source document), an extraction_model identifier, and an extracted_facts
+    array of {fact_id, fact, confidence} objects. Downstream cartographer (week4)
+    ingests doc_id and extracted_facts as node metadata. confidence must remain in
+    [0.0, 1.0].
+  generatedAt: '2026-04-01T12:58:32.074051+00:00'
+  sourceFile: outputs/week3/extractions.jsonl
+  sourceType: week3
+servers:
+  local:
+    type: local
+    path: outputs/week3/extractions.jsonl
+    format: jsonl
+terms:
+  usage: Internal inter-system data contract. Do not publish.
+  limitations: confidence must remain in 0.0–1.0 float range.
+schema:
+  doc_id:
+    type: string
+    format: uuid
+    required: true
+    unique: true
+    description: Primary key. UUIDv4. Stable across re-extractions of the same source.
+  source_hash:
+    type: string
+    pattern: ^[a-f0-9]{64}$
+    required: true
+    description: SHA-256 of the source file. Changes iff the source content changes.
+  extracted_facts:
+    type: array
+    items:
+      confidence:
+        type: number
+        minimum: 0.0
+        maximum: 1.0
+        required: true
+      fact_id:
+        type: string
+        format: uuid
+        unique: true
+      fact:
+        type: string
+        required: true
+  extraction_model:
+    type: string
+    required: true
+    description: Model identifier. Must match pattern claude-* or gpt-*.
+    pattern: ^(claude|gpt)-
+quality:
+  type: SodaChecks
+  specification:
+    checks for extractions:
+    - row_count >= 1
+    - missing_count(doc_id) = 0
+    - duplicate_count(doc_id) = 0
+    - missing_count(fact) = 0
+    - missing_count(confidence) = 0
+    - min(confidence_mean) >= 0.0
+    - max(confidence_mean) <= 1.0
+  structural:
+  - rule: doc_id_hex64
+    field: doc_id
+    type: pattern
+    pattern: ^[0-9a-f]{64}$
+    severity: BREAKING
+    description: doc_id must be a 64-character lowercase SHA-256 hex digest. Each
+      document is identified by the SHA-256 hash of its content.
+  - rule: source_hash_hex64
+    field: source_hash
+    type: pattern
+    pattern: ^[0-9a-f]{64}$
+    severity: BREAKING
+    description: source_hash is the SHA-256 digest of the raw source text before extraction.
+      Used to detect re-extraction of identical content and enable deduplication.
+  - rule: extraction_model_pattern
+    field: extraction_model
+    type: pattern
+    pattern: ^(claude|gpt)-
+    severity: ERROR
+    description: extraction_model must identify the LLM vendor prefix (claude- or
+      gpt-). Unknown prefixes indicate an undeclared model was used.
+  - rule: fact_not_null
+    field: fact
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: fact is the extracted text fragment. It must be present and non-empty
+      for every row.
+  - rule: doc_id_not_null
+    field: doc_id
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: doc_id must be present on every row. It links every fact back to
+      its source document.
+  - rule: confidence_not_null
+    field: confidence
+    type: structural
+    check: not_null
+    severity: BREAKING
+    description: confidence must be present. Missing confidence cannot be compared
+      against threshold contracts.
+  - rule: fact_id_uuid
+    field: extracted_facts.items.fact_id
+    type: pattern
+    pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+    severity: ERROR
+    description: fact_id within each extracted_facts item must be a UUID v4. Enables
+      idempotent downstream upserts.
+  - rule: entities_type_enum
+    field: entities
+    type: accepted_values
+    accepted_values:
+    - PERSON
+    - ORG
+    - LOCATION
+    - DATE
+    - MONEY
+    - FACT
+    - OTHER
+    severity: WARNING
+    status: aspirational
+    description: 'Aspirational clause: once an ''entities'' field is added to the
+      schema, entity types must use the canonical enum. Not enforced until the field
+      is present.'
+  - rule: doc_id_hex64_format
+    field: doc_id
+    type: pattern
+    pattern: ^[0-9a-f]{64}$
+    severity: ERROR
+    description: '''doc_id'' contains 64-char lowercase hex values in all observed
+      rows. Inferred as SHA-256 digest field.'
+    source: inferred
+  statistical:
+  - rule: confidence_non_zero_variance
+    field: confidence
+    type: statistical
+    check: non_zero_variance
+    severity: WARNING
+    description: If all confidence values are identical the extractor is likely returning
+      a hard-coded default. std=0 is a data quality signal.
+  crossField: []
+lineage:
+  upstream: []
+  downstream:
+  - id: week4-cartographer
+    description: Cartographer ingests doc_id and extracted_facts as node metadata
+    fields_consumed:
+    - doc_id
+    - extracted_facts
+    - extraction_model
+    breaking_if_changed:
+    - extracted_facts.confidence
+    - doc_id
+  git:
+    git_commit: d42f70391ba1
+    git_author: richh-s
+    git_committed_at: '2026-04-01T14:28:17+03:00'
+    git_message: added domain_notes
+llm_annotations:
+  status: skipped
+  reason: missing_api_key
+  model: null
+  annotations: []

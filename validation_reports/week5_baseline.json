@@ -1,0 +1,316 @@
+{
+  "contract_id": "urn:contract:week5-events:v1",
+  "data_path": "outputs/week5/events.jsonl",
+  "run_timestamp": "2026-04-01T12:41:57.024972+00:00",
+  "summary": {
+    "total_checks": 25,
+    "passed": 24,
+    "failed": 1,
+    "errors": 0,
+    "skipped": 0,
+    "breaking_violations": 0
+  },
+  "checks": [
+    {
+      "check_id": "structural.event_id_uuid",
+      "field": "event_id",
+      "rule": "event_id_uuid",
+      "status": "PASS",
+      "severity": "BREAKING",
+      "message": "'event_id': all values match pattern.",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.event_id_not_null",
+      "field": "event_id",
+      "rule": "event_id_not_null",
+      "status": "PASS",
+      "severity": "BREAKING",
+      "message": "'event_id': no null values (62 checked).",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.event_type_pascalcase",
+      "field": "event_type",
+      "rule": "event_type_pascalcase",
+      "status": "PASS",
+      "severity": "ERROR",
+      "message": "'event_type': all values match pattern.",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.event_type_enum",
+      "field": "event_type",
+      "rule": "event_type_enum",
+      "status": "PASS",
+      "severity": "ERROR",
+      "message": "'event_type': all values accepted.",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.timestamp_not_null",
+      "field": "timestamp",
+      "rule": "timestamp_not_null",
+      "status": "PASS",
+      "severity": "BREAKING",
+      "message": "'timestamp': no null values (62 checked).",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.source_system_not_null",
+      "field": "source_system",
+      "rule": "source_system_not_null",
+      "status": "PASS",
+      "severity": "BREAKING",
+      "message": "'source_system': no null values (62 checked).",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.schema_version_not_null",
+      "field": "schema_version",
+      "rule": "schema_version_not_null",
+      "status": "PASS",
+      "severity": "ERROR",
+      "message": "'schema_version': no null values (62 checked).",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.actor_id_not_null",
+      "field": "actor_id",
+      "rule": "actor_id_not_null",
+      "status": "PASS",
+      "severity": "WARNING",
+      "message": "'actor_id': no null values (62 checked).",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.event_id_uuid_format",
+      "field": "event_id",
+      "rule": "event_id_uuid_format",
+      "status": "PASS",
+      "severity": "ERROR",
+      "message": "'event_id': all values match pattern.",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.stream_id_not_null",
+      "field": "stream_id",
+      "rule": "stream_id_not_null",
+      "status": "PASS",
+      "severity": "ERROR",
+      "message": "'stream_id': no null values (62 checked).",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.stream_position_not_null",
+      "field": "stream_position",
+      "rule": "stream_position_not_null",
+      "status": "PASS",
+      "severity": "ERROR",
+      "message": "'stream_position': no null values (62 checked).",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.global_position_not_null",
+      "field": "global_position",
+      "rule": "global_position_not_null",
+      "status": "PASS",
+      "severity": "ERROR",
+      "message": "'global_position': no null values (62 checked).",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.event_type_not_null",
+      "field": "event_type",
+      "rule": "event_type_not_null",
+      "status": "PASS",
+      "severity": "ERROR",
+      "message": "'event_type': no null values (62 checked).",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.event_type_accepted_values",
+      "field": "event_type",
+      "rule": "event_type_accepted_values",
+      "status": "PASS",
+      "severity": "WARNING",
+      "message": "'event_type': all values accepted.",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.event_version_not_null",
+      "field": "event_version",
+      "rule": "event_version_not_null",
+      "status": "PASS",
+      "severity": "ERROR",
+      "message": "'event_version': no null values (62 checked).",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.source_system_accepted_values",
+      "field": "source_system",
+      "rule": "source_system_accepted_values",
+      "status": "PASS",
+      "severity": "WARNING",
+      "message": "'source_system': all values accepted.",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.schema_version_accepted_values",
+      "field": "schema_version",
+      "rule": "schema_version_accepted_values",
+      "status": "PASS",
+      "severity": "WARNING",
+      "message": "'schema_version': all values accepted.",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.metadata.correlation_id_accepted_values",
+      "field": "metadata.correlation_id",
+      "rule": "metadata.correlation_id_accepted_values",
+      "status": "PASS",
+      "severity": "WARNING",
+      "message": "'metadata.correlation_id': all values accepted.",
+      "failed_count": 0,
+      "total_count": 37,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.metadata.causation_id_uuid_format",
+      "field": "metadata.causation_id",
+      "rule": "metadata.causation_id_uuid_format",
+      "status": "PASS",
+      "severity": "ERROR",
+      "message": "'metadata.causation_id': all values match pattern.",
+      "failed_count": 0,
+      "total_count": 16,
+      "sample_violations": []
+    },
+    {
+      "check_id": "structural.metadata.causation_id_accepted_values",
+      "field": "metadata.causation_id",
+      "rule": "metadata.causation_id_accepted_values",
+      "status": "PASS",
+      "severity": "WARNING",
+      "message": "'metadata.causation_id': all values accepted.",
+      "failed_count": 0,
+      "total_count": 16,
+      "sample_violations": []
+    },
+    {
+      "check_id": "cross_field.stream_position_monotonic",
+      "field": "stream_position",
+      "rule": "stream_position_monotonic",
+      "status": "PASS",
+      "severity": "ERROR",
+      "message": "All 43 streams have monotonic stream_position.",
+      "failed_count": 0,
+      "total_count": 43,
+      "sample_violations": []
+    },
+    {
+      "check_id": "cross_field.timestamp_gte_payload_at",
+      "field": "timestamp",
+      "rule": "timestamp_gte_payload_at",
+      "status": "FAIL",
+      "severity": "WARNING",
+      "message": "timestamp < payload.*_at in 4 events \u2014 clock skew detected.",
+      "failed_count": 4,
+      "total_count": 62,
+      "sample_violations": [
+        {
+          "record_index": 11,
+          "timestamp": "2026-03-26 02:57:23.206517+00",
+          "payload_field": "completed_at",
+          "payload_value": "2026-03-26T05:56:19.954651"
+        },
+        {
+          "record_index": 21,
+          "timestamp": "2026-03-26 02:57:20.617372+00",
+          "payload_field": "completed_at",
+          "payload_value": "2026-03-26T05:56:19.753614"
+        },
+        {
+          "record_index": 39,
+          "timestamp": "2026-03-26 02:57:18.04726+00",
+          "payload_field": "submitted_at",
+          "payload_value": "2026-03-26T05:56:16.943460"
+        },
+        {
+          "record_index": 45,
+          "timestamp": "2023-12-31 21:00:00+00",
+          "payload_field": "completed_at",
+          "payload_value": "2024-01-01T12:00:00Z"
+        }
+      ]
+    },
+    {
+      "check_id": "drift.stream_position_mean_drift",
+      "field": "stream_position",
+      "rule": "stream_position_mean_drift",
+      "status": "PASS",
+      "severity": "INFO",
+      "message": "'stream_position' mean within threshold. baseline=1.7258, current=1.7258.",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "drift.global_position_mean_drift",
+      "field": "global_position",
+      "rule": "global_position_mean_drift",
+      "status": "PASS",
+      "severity": "INFO",
+      "message": "'global_position' mean within threshold. baseline=1491.5000, current=1491.5000.",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    },
+    {
+      "check_id": "drift.event_version_mean_drift",
+      "field": "event_version",
+      "rule": "event_version_mean_drift",
+      "status": "PASS",
+      "severity": "INFO",
+      "message": "'event_version' mean within threshold. baseline=1.1613, current=1.1613.",
+      "failed_count": 0,
+      "total_count": 62,
+      "sample_violations": []
+    }
+  ],
+  "exit_code": 0
+}
