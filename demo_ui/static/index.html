@@ -569,18 +569,28 @@ function renderStep1(data) {
     return esc;
   }).join('\n');
 
-  // Quality rules table
+  // Quality rules table — highlight suspicious distribution warnings
   const allRules = [...structural, ...statistical, ...crossField];
   const rulesRows = allRules.map(r => {
     const sev = (r.severity || '').toUpperCase();
     const sevBadge = severityBadge(sev);
+    const warnings = r.warnings || [];
+    const warnHtml = warnings.length
+      ? `<div style="margin-top:4px;padding:4px 8px;background:rgba(210,153,34,.15);border-left:3px solid var(--yellow);font-size:11px;color:var(--yellow);border-radius:2px">${escHtml(warnings[0])}</div>`
+      : '';
     return `<tr>
       <td style="font-family:var(--mono);font-size:12px;">${escHtml(r.rule || '')}</td>
       <td style="font-family:var(--mono);font-size:12px;">${escHtml(r.field || '')}</td>
       <td>${escHtml(r.type || '')}</td>
       <td>${sevBadge}</td>
+      <td>${warnHtml}</td>
     </tr>`;
   }).join('');
+
+  // Baseline written indicator
+  const baselineNote = `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(35,134,54,.12);border:1px solid rgba(35,134,54,.3);border-radius:6px;font-size:12px;color:var(--green)">
+    <span>✓</span> Baseline written to <code style="color:var(--accent)">schema_snapshots/baselines.json</code> (mean + stddev per numeric column)
+  </div>`;
 
   return `
     <div class="section">
@@ -602,6 +612,7 @@ function renderStep1(data) {
           <div class="stat-label">Cross-Field</div>
         </div>
       </div>
+      ${baselineNote}
     </div>
 
     <div class="section">
@@ -610,11 +621,11 @@ function renderStep1(data) {
     </div>
 
     <div class="section">
-      <div class="section-label">Quality Rules</div>
+      <div class="section-label">Quality Rules ${allRules.some(r=>(r.warnings||[]).length) ? '<span class="badge badge-yellow">⚠ suspicious distributions flagged</span>' : ''}</div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Rule</th><th>Field</th><th>Type</th><th>Severity</th></tr></thead>
-          <tbody>${rulesRows || '<tr><td colspan="4" style="color:var(--text-muted);text-align:center">No rules found</td></tr>'}</tbody>
+          <thead><tr><th>Rule</th><th>Field</th><th>Type</th><th>Severity</th><th>Distribution Warning</th></tr></thead>
+          <tbody>${rulesRows || '<tr><td colspan="5" style="color:var(--text-muted);text-align:center">No rules found</td></tr>'}</tbody>
         </table>
       </div>
     </div>
@@ -631,6 +642,11 @@ function renderStep2(data) {
   const warned  = data.warned || 0;
   const errored = data.errored || 0;
   const results = data.results || [];
+  const enfMode = data.enforcement_mode || 'ENFORCE';
+  const enfColor = enfMode === 'ENFORCE' ? 'var(--red)' : enfMode === 'WARN' ? 'var(--yellow)' : 'var(--text-muted)';
+  const enfDesc = enfMode === 'ENFORCE' ? 'blocks CRITICAL + HIGH'
+                : enfMode === 'WARN'    ? 'blocks CRITICAL only'
+                :                        'log only, never blocks';
 
   const failRows = results.filter(r => r.status === 'FAIL' || r.status === 'ERROR');
   const rows = failRows.map(r => {
@@ -679,6 +695,15 @@ function renderStep2(data) {
     </div>
 
     <div class="section">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px">
+        <span style="color:var(--text-muted)">Enforcement mode:</span>
+        <span style="font-weight:700;color:${enfColor}">${enfMode}</span>
+        <span style="color:var(--text-muted)">—</span>
+        <span style="color:var(--text-muted)">${enfDesc}</span>
+      </div>
+    </div>
+
+    <div class="section">
       <div class="section-label">FAIL / ERROR Results ${failRows.length > 0 ? `<span class="badge badge-red">${failRows.length}</span>` : ''}</div>
       <div class="table-wrap">
         <table>
@@ -701,7 +726,10 @@ function renderStep3(data) {
 
   const first = records[0];
   const blameChain = first.blame_chain || first.attribution?.blame_chain || [];
-  const blastNodes = first.blast_radius?.affected_nodes || first.blast_radius || [];
+  const blastRadius = first.blast_radius || {};
+  const blastNodes = blastRadius.affected_nodes || (Array.isArray(first.blast_radius) ? first.blast_radius : []);
+  const contaminationDepth = blastRadius.contamination_depth;
+  const blastMethod = blastRadius.blast_radius_method || '';
   const checkId = first.check_id || first.violation_id || 'Unknown check';
   const fieldName = first.field || first.column_name || '';
 
@@ -744,7 +772,10 @@ function renderStep3(data) {
     </div>
 
     <div class="section">
-      <div class="section-label">Blast Radius — Affected Nodes</div>
+      <div class="section-label">Blast Radius — Affected Nodes
+        ${contaminationDepth != null ? `<span class="badge badge-orange" style="margin-left:8px">contamination_depth: ${contaminationDepth}</span>` : ''}
+        ${blastMethod ? `<span class="badge badge-neutral" style="margin-left:4px;font-size:10px">${escHtml(blastMethod)}</span>` : ''}
+      </div>
       <div class="card">
         ${blastHtml}
       </div>
