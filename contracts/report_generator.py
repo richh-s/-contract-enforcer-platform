@@ -250,7 +250,7 @@ def _load_jsonl(path: Path) -> list[dict]:
     with open(path) as fh:
         for line in fh:
             line = line.strip()
-            if line:
+            if line and not line.startswith("#"):
                 records.append(json.loads(line))
     return records
 
