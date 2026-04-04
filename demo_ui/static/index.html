@@ -464,10 +464,16 @@ function runStep(id) {
       btn.classList.remove('running');
       btn.disabled = false;
 
-      if (exitCode === 0) {
-        setStepStatus(id, 'success');
-        statusText.textContent = 'Completed successfully';
-        appendLine(term, `\n[Exit 0] Command succeeded.`, 'hi-green');
+      // Exit 2 from runner/schema_analyzer means violations detected — still load results
+      const violationExit = (exitCode === 2 && (id === 2 || id === 4));
+      if (exitCode === 0 || violationExit) {
+        setStepStatus(id, exitCode === 0 ? 'success' : 'error');
+        statusText.textContent = exitCode === 0
+          ? 'Completed successfully'
+          : `Violations detected (exit ${exitCode}) — pipeline BLOCKED`;
+        appendLine(term, exitCode === 0
+          ? `\n[Exit 0] Command succeeded.`
+          : `\n[Exit ${exitCode}] Violations found — loading report...`, 'hi-red');
         loadResults(id);
       } else {
         setStepStatus(id, 'error');
