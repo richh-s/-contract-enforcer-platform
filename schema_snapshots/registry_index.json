@@ -4,42 +4,80 @@
     "consumers": [
       {
         "consumer_id": "week4-cartographer",
+        "subscriber_id": "week4-cartographer",
+        "contact": "week4-team@platform.internal",
+        "registered_at": "2026-04-01T00:00:00Z",
         "description": "Cartographer ingests doc_id as node identity and extracted_facts as node metadata in the lineage graph. Uses confidence as an edge weight for attribution scoring. Any change to the confidence scale (e.g., 0\u20131 \u2192 0\u2013100) silently inflates attribution by 100\u00d7 without any runtime error \u2014 a silent corruption failure mode.\n",
         "fields_consumed": [
           "doc_id",
           "extracted_facts",
           "extraction_model"
         ],
+        "breaking_fields": [
+          {
+            "field": "extracted_facts.confidence",
+            "reason": "edge weight \u2014 scale change is silent corruption (100\u00d7 inflation)"
+          },
+          {
+            "field": "doc_id",
+            "reason": "node identity \u2014 format change breaks graph joins"
+          }
+        ],
         "breaking_if_changed": [
           "extracted_facts.confidence",
           "doc_id"
         ],
+        "validation_mode": "ENFORCE",
         "enforcement_mode": "ENFORCE"
       },
       {
         "consumer_id": "week5-event-publisher",
+        "subscriber_id": "week5-event-publisher",
+        "contact": "week5-team@platform.internal",
+        "registered_at": "2026-04-01T00:00:00Z",
         "description": "Event publisher reads confidence to gate DecisionGenerated events. A threshold of confidence > 0.7 becomes always-true when confidence is on the 0\u2013100 scale, bypassing the quality gate entirely.\n",
         "fields_consumed": [
           "doc_id",
           "confidence"
         ],
+        "breaking_fields": [
+          {
+            "field": "confidence",
+            "reason": "gate logic \u2014 scale change disables quality gate (0.7 threshold becomes always-true)"
+          }
+        ],
         "breaking_if_changed": [
           "confidence"
         ],
+        "validation_mode": "ENFORCE",
         "enforcement_mode": "ENFORCE"
       },
       {
         "consumer_id": "contract-enforcer-runner",
+        "subscriber_id": "contract-enforcer-runner",
+        "contact": "platform-infra@platform.internal",
+        "registered_at": "2026-04-01T00:00:00Z",
         "description": "The validation runner (consumer-side enforcement) reads all fields to evaluate contract compliance. Used in AUDIT mode to detect violations without blocking the pipeline.\n",
         "fields_consumed": [
           "doc_id",
           "extracted_facts",
           "confidence"
         ],
+        "breaking_fields": [
+          {
+            "field": "doc_id",
+            "reason": "primary key for violation record linkage"
+          },
+          {
+            "field": "extracted_facts.confidence",
+            "reason": "range check threshold \u2014 scale change causes false negatives"
+          }
+        ],
         "breaking_if_changed": [
           "doc_id",
           "extracted_facts.confidence"
         ],
+        "validation_mode": "AUDIT",
         "enforcement_mode": "AUDIT"
       }
     ],
@@ -50,6 +88,9 @@
     "consumers": [
       {
         "consumer_id": "audit-trail-service",
+        "subscriber_id": "audit-trail-service",
+        "contact": "audit-team@platform.internal",
+        "registered_at": "2026-04-01T00:00:00Z",
         "description": "Audit service consumes all events for compliance logging and accountability. event_type drives routing to the correct audit handler. An unknown event_type is dropped, creating audit gaps.\n",
         "fields_consumed": [
           "event_id",
@@ -59,15 +100,33 @@
           "source_system",
           "schema_version"
         ],
+        "breaking_fields": [
+          {
+            "field": "event_id",
+            "reason": "audit record identity"
+          },
+          {
+            "field": "event_type",
+            "reason": "routes to compliance handler \u2014 unknown type drops the event"
+          },
+          {
+            "field": "schema_version",
+            "reason": "deserializer routing \u2014 mismatch causes parse failure"
+          }
+        ],
         "breaking_if_changed": [
           "event_id",
           "event_type",
           "schema_version"
         ],
+        "validation_mode": "ENFORCE",
         "enforcement_mode": "ENFORCE"
       },
       {
         "consumer_id": "week4-cartographer",
+        "subscriber_id": "week4-cartographer",
+        "contact": "week4-team@platform.internal",
+        "registered_at": "2026-04-01T00:00:00Z",
         "description": "Cartographer ingests event metadata as graph nodes to build the causal event chain.\n",
         "fields_consumed": [
           "event_id",
@@ -75,14 +134,28 @@
           "stream_id",
           "actor_id"
         ],
+        "breaking_fields": [
+          {
+            "field": "event_id",
+            "reason": "graph node identity"
+          },
+          {
+            "field": "event_type",
+            "reason": "node classification in causal chain"
+          }
+        ],
         "breaking_if_changed": [
           "event_id",
           "event_type"
         ],
+        "validation_mode": "WARN",
         "enforcement_mode": "WARN"
       },
       {
         "consumer_id": "decision-replay-service",
+        "subscriber_id": "decision-replay-service",
+        "contact": "replay-team@platform.internal",
+        "registered_at": "2026-04-01T00:00:00Z",
         "description": "Replay service reconstructs decision sequences from the event log. Relies on stream_position being monotonically increasing within each stream_id. A reset or gap causes replays to produce incorrect decision sequences.\n",
         "fields_consumed": [
           "event_id",
@@ -91,10 +164,21 @@
           "event_type",
           "timestamp"
         ],
+        "breaking_fields": [
+          {
+            "field": "stream_position",
+            "reason": "monotonicity \u2014 reset causes incorrect replay"
+          },
+          {
+            "field": "stream_id",
+            "reason": "partition key for replay"
+          }
+        ],
         "breaking_if_changed": [
           "stream_position",
           "stream_id"
         ],
+        "validation_mode": "ENFORCE",
         "enforcement_mode": "ENFORCE"
       }
     ],
@@ -105,15 +189,25 @@
     "consumers": [
       {
         "consumer_id": "week3-document-refinery",
+        "subscriber_id": "week3-document-refinery",
+        "contact": "week3-team@platform.internal",
+        "registered_at": "2026-04-01T00:00:00Z",
         "description": "Document refinery reads intent records to determine extraction scope and target document set.\n",
         "fields_consumed": [
           "intent_id",
           "target_docs",
           "extraction_config"
         ],
+        "breaking_fields": [
+          {
+            "field": "intent_id",
+            "reason": "primary key for extraction job linkage"
+          }
+        ],
         "breaking_if_changed": [
           "intent_id"
         ],
+        "validation_mode": "WARN",
         "enforcement_mode": "WARN"
       }
     ],
@@ -124,28 +218,52 @@
     "consumers": [
       {
         "consumer_id": "contract-enforcer-attributor",
+        "subscriber_id": "contract-enforcer-attributor",
+        "contact": "platform-infra@platform.internal",
+        "registered_at": "2026-04-01T00:00:00Z",
         "description": "The blame-chain attributor traverses the lineage graph to identify which pipeline node introduced a violation. Relies on snapshot_id being stable and nodes[].id being unique.\n",
         "fields_consumed": [
           "snapshot_id",
           "nodes",
           "edges"
         ],
+        "breaking_fields": [
+          {
+            "field": "snapshot_id",
+            "reason": "attribution key \u2014 change breaks blame-chain joins"
+          },
+          {
+            "field": "nodes",
+            "reason": "graph structure \u2014 any rename breaks traversal"
+          }
+        ],
         "breaking_if_changed": [
           "snapshot_id",
           "nodes"
         ],
+        "validation_mode": "ENFORCE",
         "enforcement_mode": "ENFORCE"
       },
       {
         "consumer_id": "schema-evolution-analyzer",
+        "subscriber_id": "schema-evolution-analyzer",
+        "contact": "platform-infra@platform.internal",
+        "registered_at": "2026-04-01T00:00:00Z",
         "description": "Schema evolution analyzer reads lineage to enrich blast radius with pipeline-level impact. Uses downstream consumer declarations to identify which nodes are affected by schema changes.\n",
         "fields_consumed": [
           "snapshot_id",
           "downstream"
         ],
+        "breaking_fields": [
+          {
+            "field": "downstream",
+            "reason": "blast radius source \u2014 change breaks impact analysis"
+          }
+        ],
         "breaking_if_changed": [
           "downstream"
         ],
+        "validation_mode": "AUDIT",
         "enforcement_mode": "AUDIT"
       }
     ],
@@ -156,6 +274,9 @@
     "consumers": [
       {
         "consumer_id": "ai-quality-monitor",
+        "subscriber_id": "ai-quality-monitor",
+        "contact": "ai-team@platform.internal",
+        "registered_at": "2026-04-01T00:00:00Z",
         "description": "AI quality monitor reads trace runs to compute model performance metrics and detect prompt degradation. total_tokens drives cost attribution; run_type drives routing to the correct scorer.\n",
         "fields_consumed": [
           "run_id",
@@ -165,24 +286,49 @@
           "end_time",
           "error"
         ],
+        "breaking_fields": [
+          {
+            "field": "run_id",
+            "reason": "trace identity"
+          },
+          {
+            "field": "run_type",
+            "reason": "scorer routing \u2014 unknown type drops the trace"
+          },
+          {
+            "field": "total_tokens",
+            "reason": "cost attribution \u2014 null breaks budget reporting"
+          }
+        ],
         "breaking_if_changed": [
           "run_id",
           "run_type",
           "total_tokens"
         ],
+        "validation_mode": "WARN",
         "enforcement_mode": "WARN"
       },
       {
         "consumer_id": "contract-enforcer-runner",
+        "subscriber_id": "contract-enforcer-runner",
+        "contact": "platform-infra@platform.internal",
+        "registered_at": "2026-04-01T00:00:00Z",
         "description": "Validation runner audits trace outputs for schema compliance. Used in AUDIT mode \u2014 violations are logged but pipeline not blocked.\n",
         "fields_consumed": [
           "run_id",
           "run_type",
           "total_tokens"
         ],
+        "breaking_fields": [
+          {
+            "field": "run_id",
+            "reason": "audit record identity"
+          }
+        ],
         "breaking_if_changed": [
           "run_id"
         ],
+        "validation_mode": "AUDIT",
         "enforcement_mode": "AUDIT"
       }
     ],

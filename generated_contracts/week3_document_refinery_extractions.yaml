@@ -10,7 +10,7 @@ info:
     array of {fact_id, fact, confidence} objects. Downstream cartographer (week4)
     ingests doc_id and extracted_facts as node metadata. confidence must remain in
     [0.0, 1.0].
-  generatedAt: '2026-04-01T18:47:27.436799+00:00'
+  generatedAt: '2026-04-04T08:59:02.683129+00:00'
   sourceFile: outputs/week3/extractions.jsonl
   sourceType: week3
 servers:
@@ -211,10 +211,10 @@ lineage:
     - extracted_facts.confidence
     - doc_id
   git:
-    git_commit: 61392ad3ad9e
+    git_commit: 88c1e0379c64
     git_author: richh-s
-    git_committed_at: '2026-04-01T16:00:31+03:00'
-    git_message: done with phase 1
+    git_committed_at: '2026-04-04T10:55:50+03:00'
+    git_message: 'fix report_generator: skip # comment lines in _load_jsonl'
 llm_annotations:
   status: skipped
   reason: missing_api_key

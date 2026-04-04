@@ -1,10 +1,10 @@
 {
-  "report_id": "7cc5c387-ffc9-40b7-966d-30fea33148bb",
+  "report_id": "0b305b9a-56ce-40f1-8620-b6ca4acc4d93",
   "contract_id": "week3-document-refinery-extractions",
   "snapshot_id": "807cac098c9e9b1704ede29ed7ed028d389af45cb877d2bbd7dce81bfb724b62",
-  "run_timestamp": "2026-04-01T20:00:59.258592+00:00",
-  "total_checks": 12,
-  "passed": 6,
+  "run_timestamp": "2026-04-04T08:59:42.076092+00:00",
+  "total_checks": 11,
+  "passed": 5,
   "failed": 3,
   "warned": 0,
   "errored": 3,
@@ -106,18 +106,6 @@
       "message": "Aspirational clause \u2014 'entities' not yet in data schema."
     },
     {
-      "check_id": "week3.doc_id.pattern",
-      "column_name": "doc_id",
-      "check_type": "pattern",
-      "status": "PASS",
-      "actual_value": "non_matching=0",
-      "expected": "pattern=^[0-9a-f]{64}$",
-      "severity": "HIGH",
-      "records_failing": 0,
-      "sample_failing": [],
-      "message": "'doc_id': all 50 values match pattern."
-    },
-    {
       "check_id": "week3.extracted_facts.confidence.range",
       "column_name": "extracted_facts[*].confidence",
       "check_type": "range",
@@ -162,5 +150,6 @@
     }
   ],
   "data_path": "outputs/week3/extractions_violated.jsonl",
-  "exit_code": 1
+  "exit_code": 1,
+  "enforcement_mode": "ENFORCE"
 }
